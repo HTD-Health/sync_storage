@@ -234,7 +234,7 @@ class StorageEntry<T> {
   /// Clears storage data.
   Future<void> clear() async {
     /// Wait for ongoing sync task
-    await _networkSyncTask;
+    await _networkSyncTask.future;
 
     _cells = [];
     await storage.clear();
@@ -243,7 +243,7 @@ class StorageEntry<T> {
 
   Future<void> dispose() async {
     /// Wait for ongoing sync task
-    await _networkSyncTask;
+    await _networkSyncTask.future;
     await storage.dispose();
   }
 

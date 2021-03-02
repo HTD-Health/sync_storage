@@ -43,14 +43,16 @@ class SyncStorage {
 
   SyncStorage({
     @required this.networkAvailabilityService,
-    bool initialNetworkAvailable,
     this.debug = false,
   }) {
-    assert(networkAvailabilityService != null, 'networkService cannot be null.');
+    assert(
+        networkAvailabilityService != null, 'networkService cannot be null.');
 
-    _networkNotifier.value = initialNetworkAvailable ?? true;
-    _networkAvailabilitySubscription =
-        this.networkAvailabilityService.onConnectivityChanged.listen(_onNetworkChange);
+    _networkNotifier.value = networkAvailabilityService.isConnected ?? true;
+    _networkAvailabilitySubscription = this
+        .networkAvailabilityService
+        .onConnectivityChanged
+        .listen(_onNetworkChange);
   }
 
   void _onNetworkChange(bool networkAvailable) {

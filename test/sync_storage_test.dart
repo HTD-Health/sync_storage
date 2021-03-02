@@ -37,7 +37,6 @@ void main() {
 
       syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
-        initialNetworkAvailable: true,
       );
       storage = HiveStorageMock(boxName, const TestElementSerializer());
 
@@ -47,9 +46,7 @@ void main() {
         networkCallbacks: networkCallbacks,
       );
 
-      networkAvailabilityService.goOnline();
-
-      await Future<void>.delayed(const Duration());
+      await networkAvailabilityService.goOnline();
 
       await entry.setElements([
         for (int i = 0; i < 5; i++) TestElement(i),
@@ -356,7 +353,6 @@ void main() {
         await networkAvailabilityService.goOnline();
         syncStorage = SyncStorage(
           networkAvailabilityService: networkAvailabilityService,
-          initialNetworkAvailable: true,
         );
 
         when(networkCallbacks.onFetch())
