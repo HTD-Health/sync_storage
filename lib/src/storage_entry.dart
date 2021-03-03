@@ -134,7 +134,7 @@ class StorageEntry<T> {
 
     if (needsElementsSync) {
       debugModePrint(
-        '[$runtimeType]: Syncing elements with network.',
+        '[$runtimeType]: Syncing elements with network...',
         enabled: debug,
       );
       await _syncElementsWithNetwork();
@@ -147,12 +147,12 @@ class StorageEntry<T> {
     try {
       if (needsFetch && !needsElementsSync) {
         debugModePrint(
-          '[$runtimeType]: Requesting elements fetch.',
+          '[$runtimeType]: Fetching elements from the network...',
           enabled: debug,
         );
         final cells = await _fetchAllCellsFromNetwork();
         debugModePrint(
-          '[$runtimeType]: Fetched elements: ${cells?.length}',
+          '[$runtimeType]: Elements fetched: count=${cells?.length}.',
           enabled: debug,
         );
 
@@ -178,6 +178,15 @@ class StorageEntry<T> {
     }
 
     _networkSyncTask.complete();
+  }
+
+  Future<void> refetch() async {
+    debugModePrint(
+      '[$runtimeType]: Marked the entry as refetch is needed.',
+      enabled: debug,
+    );
+    _needsFetch = true;
+    await syncElementsWithNetwork();
   }
 
   Future<void> _syncElementsWithNetwork() async {
@@ -271,16 +280,24 @@ class StorageEntry<T> {
   /// Utility functions
 
   /// Clears storage data.
+  /// This will not cause refetch.
+  /// To refetch all data use [refetch] method.
   Future<void> clear() async {
+    debugModePrint(
+      '[$runtimeType]: Clearing entry...',
+      enabled: debug,
+    );
+
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
 
     _cells = [];
     await storage.clear();
-    _needsFetch = true;
 
-    /// treeger sync
-    syncElementsWithNetwork();
+    debugModePrint(
+      '[$runtimeType]: Entry cleared.',
+      enabled: debug,
+    );
   }
 
   Future<void> dispose() async {
