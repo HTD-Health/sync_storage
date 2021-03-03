@@ -4,12 +4,15 @@ import 'package:connectivity/connectivity.dart';
 import 'package:meta/meta.dart';
 import 'package:sync_storage/sync_storage.dart';
 
+import '../sync_storage.dart';
+
 class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
   final Connectivity _connectivity = Connectivity();
   final StreamController _streamController = StreamController<bool>.broadcast();
 
   final Duration pollingDuration;
   final List<String> lookupAddresses;
+  final bool debug;
 
   Timer _timer;
   bool _internetAvailable = false;
@@ -21,13 +24,15 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
 
   NetworkAvailabilityLookupService({
     this.lookupAddresses,
+    this.debug = false,
     this.pollingDuration = const Duration(seconds: 2),
   }) {
-    _connectivity.checkConnectivity();
     _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
+    _connectivity.checkConnectivity().then(_handleConnectivityChange);
   }
 
   void _handleConnectivityChange(ConnectivityResult event) async {
+    debugModePrint('[$runtimeType] ConnectivityChange: $event', enabled: debug);
     switch (event) {
       case ConnectivityResult.mobile:
       case ConnectivityResult.wifi:
@@ -48,8 +53,13 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
   Future<bool> _ping(String address) async {
     try {
       final result = await InternetAddress.lookup(address);
-      return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      final success = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
+      debugModePrint('[$runtimeType] Ping: address=$address, success=$success.',
+          enabled: debug);
+      return success;
     } on SocketException catch (_) {
+      debugModePrint('[$runtimeType] Ping: address=$address, success=${false}.',
+          enabled: debug);
       return false;
     }
   }
@@ -63,6 +73,9 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
 
   Future<void> _publishConnectionStatus() async {
     final bool isConnected = await _checkConnection();
+    debugModePrint(
+        '[$runtimeType] Publish connection status: isConnected=$isConnected.',
+        enabled: debug);
     _internetAvailable = isConnected;
     _streamController.sink.add(isConnected);
   }
@@ -75,10 +88,12 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
   }
 
   void _setPeriodicPolling() {
+    debugModePrint('[$runtimeType] Set periodic polling.', enabled: debug);
     _timer = Timer.periodic(pollingDuration, (_) => _publishConnectionStatus());
   }
 
   void _cancelTimer() {
+    debugModePrint('[$runtimeType] Cancel timer.', enabled: debug);
     _timer?.cancel();
   }
 
