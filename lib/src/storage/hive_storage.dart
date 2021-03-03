@@ -127,7 +127,7 @@ class HiveStorage<T> extends Storage<T> {
   HiveStorage(this.boxName, this.serializer);
 
   @visibleForTesting
-  Box<String> box;
+  LazyBox<String> box;
 
   @override
   Future<void> initialize() async {
@@ -146,7 +146,7 @@ class HiveStorage<T> extends Storage<T> {
 
   @override
   Future<void> open() async {
-    box = await Hive.openBox<String>(boxName);
+    box = await Hive.openLazyBox<String>(boxName);
     final configData = await box.get(_configKey);
 
     _config = StorageConfig.fromJson(configData);
@@ -154,11 +154,8 @@ class HiveStorage<T> extends Storage<T> {
 
   @override
   Future<List<StorageCell<T>>> readAllCells() async {
-    final values = box
-        .toMap()
-        .entries
-        .where((entry) => entry.key != _configKey)
-        .map((e) => e.value);
+    final values = await Future.wait(
+        box.keys.where((key) => key != _configKey).map((key) => box.get(key)));
 
     return [
       for (final value in values) StorageCell<T>.fromJson(value, serializer)
