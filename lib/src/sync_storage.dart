@@ -136,6 +136,7 @@ class SyncStorage {
     }
 
     final entry = StorageEntry<T>(
+      debug: debug,
       name: name,
       storage: storage,
       networkCallbacks: networkCallbacks,

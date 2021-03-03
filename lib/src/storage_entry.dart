@@ -23,6 +23,7 @@ class StorageEntry<T> {
   final StorageNetworkCallbacks<T> networkCallbacks;
   final OnCellSyncError<T> onCellSyncError;
   final ValueChanged<StorageCell<T>> onCellMaxAttemptsReached;
+  final bool debug;
 
   final Future<void> Function() networkUpdateCallback;
 
@@ -63,6 +64,7 @@ class StorageEntry<T> {
   }
 
   StorageEntry({
+    this.debug = false,
     @required this.name,
     @required this.storage,
     @required this.networkCallbacks,
@@ -112,7 +114,8 @@ class StorageEntry<T> {
   @visibleForTesting
   Future<void> syncWithStorage() async {
     debugModePrint(
-      '[StorageEntry]: Wrtiting cells to storage.',
+      '[$runtimeType]: Wrtiting cells to storage.',
+      enabled: debug,
     );
     await storage.writeAllCells(_cells);
   }
@@ -123,16 +126,28 @@ class StorageEntry<T> {
     _networkSyncTask = Completer<void>();
 
     if (needsElementsSync) {
-      debugModePrint('[StorageEntry]: Syncing elements with network.');
+      debugModePrint(
+        '[$runtimeType]: Syncing elements with network.',
+        enabled: debug,
+      );
       await _syncElementsWithNetwork();
-      debugModePrint('[StorageEntry]: Elements sync completed.');
+      debugModePrint(
+        '[$runtimeType]: Elements sync completed.',
+        enabled: debug,
+      );
     }
 
     try {
       if (needsFetch && !needsElementsSync) {
-        debugModePrint('[StorageEntry]: Requesting elements fetch.');
+        debugModePrint(
+          '[$runtimeType]: Requesting elements fetch.',
+          enabled: debug,
+        );
         final cells = await _fetchAllCellsFromNetwork();
-        debugModePrint('[StorageEntry]: Fetched elements: ${cells?.length}');
+        debugModePrint(
+          '[$runtimeType]: Fetched elements: ${cells?.length}',
+          enabled: debug,
+        );
 
         /// If cells are null, current cells will not be replaced.
         if (cells != null) {
@@ -146,7 +161,10 @@ class StorageEntry<T> {
         ));
       }
     } on Exception catch (err) {
-      print('Exception caught: $err');
+      debugModePrint(
+        '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err',
+        enabled: debug,
+      );
     } finally {
       /// disable entry fetch for current session
       _needsFetch = false;
@@ -165,7 +183,9 @@ class StorageEntry<T> {
         switch (cell.actionNeeded) {
           case SyncAction.create:
             debugModePrint(
-                '[StorageEntry]: Sync action: CREATE ${cell.element.runtimeType}');
+              '[$runtimeType]: Sync action: CREATE ${cell.element.runtimeType}',
+              enabled: debug,
+            );
 
             /// Make CREATE request
             newElement = await networkCallbacks.onCreate(cell.element);
@@ -173,7 +193,9 @@ class StorageEntry<T> {
             break;
           case SyncAction.update:
             debugModePrint(
-                '[StorageEntry]: Sync action: UPDATE ${cell.element.runtimeType}');
+              '[$runtimeType]: Sync action: UPDATE ${cell.element.runtimeType}',
+              enabled: debug,
+            );
 
             /// Make UPDATE request
             newElement = await networkCallbacks.onUpdate(
@@ -184,7 +206,9 @@ class StorageEntry<T> {
             break;
           case SyncAction.delete:
             debugModePrint(
-                '[StorageEntry]: Sync action: DELETE ${cell.element.runtimeType}');
+              '[$runtimeType]: Sync action: DELETE ${cell.element.runtimeType}',
+              enabled: debug,
+            );
 
             /// if cell was synced, remove it representation from the network
             if (cell.wasSynced) {
@@ -195,7 +219,8 @@ class StorageEntry<T> {
 
           default:
             debugModePrint(
-              '[StorageEntry]: Not supported sync action, skipping...',
+              '[$runtimeType]: Not supported sync action, skipping...',
+              enabled: debug,
             );
             continue;
         }
@@ -209,6 +234,11 @@ class StorageEntry<T> {
           ..resetSyncAttemptsCount()
           ..markAsSynced();
       } catch (err, stackTrace) {
+        debugModePrint(
+          '[$runtimeType]: Exception caught during network sync: $err',
+          enabled: debug,
+        );
+
         /// register sync attempt on failed sync.
         cell.registerSyncAttempt();
         onCellSyncError?.call(cell, err, stackTrace);
