@@ -278,6 +278,9 @@ class StorageEntry<T> {
     _cells = [];
     await storage.clear();
     _needsFetch = true;
+
+    /// treeger sync
+    syncElementsWithNetwork();
   }
 
   Future<void> dispose() async {

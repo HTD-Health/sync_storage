@@ -147,9 +147,7 @@ class HiveStorage<T> extends Storage<T> {
   @override
   Future<void> open() async {
     box = await Hive.openLazyBox<String>(boxName);
-    final configData = await box.get(_configKey);
-
-    _config = StorageConfig.fromJson(configData);
+    await _loadConfig();
   }
 
   @override
@@ -160,6 +158,12 @@ class HiveStorage<T> extends Storage<T> {
     return [
       for (final value in values) StorageCell<T>.fromJson(value, serializer)
     ];
+  }
+
+  Future<void> _loadConfig() async {
+    final configData = await box.get(_configKey);
+
+    _config = StorageConfig.fromJson(configData);
   }
 
   @override
@@ -187,6 +191,7 @@ class HiveStorage<T> extends Storage<T> {
   @override
   Future<void> clear() async {
     await box.clear();
+    await _loadConfig();
   }
 
   @override
