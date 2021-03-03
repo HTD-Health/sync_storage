@@ -120,6 +120,7 @@ class SyncStorage {
     @required StorageNetworkCallbacks<T> networkCallbacks,
     OnCellSyncError<T> onCellSyncError,
     ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
+    DelayDurationGetter getDelayBeforeNextAttempt,
   }) async {
     debugModePrint(
       '[SyncStorage]: Registering entry with name: $name',
@@ -144,6 +145,7 @@ class SyncStorage {
       onCellSyncError: onCellSyncError,
       onCellMaxAttemptsReached: onCellMaxAttemptsReached,
       networkNotifier: _networkNotifier,
+      getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
     );
     await entry.initialize();
     _entries.add(entry);

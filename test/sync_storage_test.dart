@@ -13,6 +13,14 @@ void main() {
   group('SyncStorage', () {
     final boxName = 'BOX_NAME';
 
+    final delaysBeforeNextAttempt = <Duration>[
+      Duration(microseconds: 0),
+      Duration(microseconds: 0),
+      Duration(microseconds: 0),
+      Duration(microseconds: 0),
+      Duration(microseconds: 0),
+      Duration(microseconds: 0),
+    ];
     SyncStorage syncStorage;
     HiveStorageMock<TestElement> storage;
     StorageEntry<TestElement> entry;
@@ -44,6 +52,8 @@ void main() {
         name: 'test_elements',
         storage: storage,
         networkCallbacks: networkCallbacks,
+        getDelayBeforeNextAttempt: (attempt) =>
+            delaysBeforeNextAttempt[attempt],
       );
 
       await networkAvailabilityService.goOnline();
@@ -233,10 +243,14 @@ void main() {
       });
 
       test(
-          'Remove elements from storage after [maxNetworkSyncAttempts] reached.',
-          () async {
+          'Delays cell sync after sync failure and remove elements from '
+          'storage after [maxNetworkSyncAttempts] reached.', () async {
         when(networkCallbacks.onCreate(any))
             .thenAnswer((_) => throw Exception());
+
+        for (int i = 0; i < delaysBeforeNextAttempt.length; i++) {
+          delaysBeforeNextAttempt[i] = Duration(milliseconds: 50 * i);
+        }
 
         /// 5 elements in storage
         expect(entry.cells, hasLength(5));
@@ -247,6 +261,27 @@ void main() {
         expect(entry.cells, hasLength(6));
 
         final cell = await cellFuture;
+
+        /// make sure that after each delay cells are still delayed.
+        for (var i = cell.networkSyncAttemptsCount;
+            i < StorageCell.maxNetworkSyncAttempts;
+            i++) {
+          expect(entry.cells, hasLength(6));
+          expect(cell.isDelayed, isTrue);
+          expect(
+              cell.syncDelayedTo,
+              (DateTime syncDelayedTo) =>
+                  DateTime.now().isBefore(syncDelayedTo));
+          expect(cell.needsNetworkSync, isFalse);
+
+          await Future.delayed(
+            delaysBeforeNextAttempt[cell.networkSyncAttemptsCount],
+          );
+          await syncStorage.syncEntriesWithNetwork();
+        }
+
+        /// after max attempts cell should be removed from the storage
+        expect(entry.cells, hasLength(5));
 
         /// after [StorageCell.maxNetworkSyncAttempts] element is removed
         /// from storage.
@@ -261,6 +296,7 @@ void main() {
         );
       });
     });
+
     group('Move cells between entries', () {
       final networkAvailabilityService =
           MockedNetworkAvailabilityService(initialIsConnected: false);

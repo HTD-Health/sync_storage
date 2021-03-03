@@ -1,5 +1,7 @@
 part of './storage_entry.dart';
 
+typedef DelayDurationGetter = Duration Function(int attempt);
+
 enum SyncAction {
   create,
   update,
@@ -11,6 +13,10 @@ class StorageCell<T> {
   /// should be removed from storage.
   static const maxNetworkSyncAttempts = 5;
 
+  DateTime _syncDelayedTo;
+  DateTime get syncDelayedTo => _syncDelayedTo;
+  bool get isDelayed =>
+      _syncDelayedTo != null && DateTime.now().isBefore(_syncDelayedTo);
   final DateTime createdAt;
   DateTime _updatedAt;
   DateTime get updatedAt => _updatedAt;
@@ -24,19 +30,38 @@ class StorageCell<T> {
     }
   }
 
-  int _networkSyncAttemptsCount;
-
   /// The number of times that network synchronization was retried.
   int get networkSyncAttemptsCount => _networkSyncAttemptsCount;
+  int _networkSyncAttemptsCount;
+
+  static Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
+    if (attemptNumber < 5) {
+      return const [
+        Duration(seconds: 10),
+        Duration(minutes: 1),
+        Duration(minutes: 5),
+        Duration(minutes: 10),
+        Duration(hours: 1),
+      ][attemptNumber];
+    } else {
+      return Duration(days: 1);
+    }
+  }
 
   /// Register failed network synchronization.
   ///
   /// Cell will be deleted when retry count
-  void registerSyncAttempt() {
-    _networkSyncAttemptsCount++;
+  void registerSyncAttempt({DelayDurationGetter getDelayBeforeNextAttempt}) {
+    final getDelay =
+        getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt;
+    final attempt = _networkSyncAttemptsCount++;
+    final delay = getDelay(attempt);
+
+    _syncDelayedTo = DateTime.now().add(delay);
   }
 
   void resetSyncAttemptsCount() {
+    _syncDelayedTo = null;
     _networkSyncAttemptsCount = 0;
   }
 
@@ -63,9 +88,11 @@ class StorageCell<T> {
     this.lastSync,
     bool deleted,
     int networkSyncAttemptsCount,
+    DateTime syncDelayedTo,
   })  : _element = element,
         createdAt = createdAt ?? DateTime.now(),
         _updatedAt = updatedAt,
+        _syncDelayedTo = syncDelayedTo,
         _oldElement = oldElement,
         _deleted = deleted ?? false,
         _networkSyncAttemptsCount = networkSyncAttemptsCount ?? 0;
@@ -88,23 +115,11 @@ class StorageCell<T> {
   }
 
   bool get wasSynced => lastSync != null;
-  bool get needsNetworkSync => !(wasSynced &&
-      ((updatedAt != null && !updatedAt.isAfter(lastSync)) ||
-          (updatedAt == null && !createdAt.isAfter(lastSync))));
-
-  String toJson(Serializer<T> serializer) {
-    final jsonMap = <String, dynamic>{
-      'deleted': deleted,
-      'createdAt': createdAt?.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-      'lastSync': lastSync?.toIso8601String(),
-      'networkSyncAttemptsCount': networkSyncAttemptsCount,
-      'element': element == null ? null : serializer.toJson(element),
-      if (oldElement != null) 'oldElement': serializer.toJson(oldElement),
-    };
-
-    return json.encode(jsonMap);
-  }
+  bool get needsNetworkSync =>
+      !isDelayed &&
+      !(wasSynced &&
+          ((updatedAt != null && !updatedAt.isAfter(lastSync)) ||
+              (updatedAt == null && !createdAt.isAfter(lastSync))));
 
   /// Marking this cell as ready for update.
   void markAsUpdateNeeded() {
@@ -137,6 +152,21 @@ class StorageCell<T> {
     }
   }
 
+  String toJson(Serializer<T> serializer) {
+    final jsonMap = <String, dynamic>{
+      'deleted': deleted,
+      'syncDelayedTo': _syncDelayedTo?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'lastSync': lastSync?.toIso8601String(),
+      'networkSyncAttemptsCount': networkSyncAttemptsCount,
+      'element': element == null ? null : serializer.toJson(element),
+      if (oldElement != null) 'oldElement': serializer.toJson(oldElement),
+    };
+
+    return json.encode(jsonMap);
+  }
+
   factory StorageCell.fromJson(String data, Serializer<T> serializer) {
     final dynamic decodedJson = json.decode(data);
 
@@ -158,6 +188,9 @@ class StorageCell<T> {
       lastSync: decodedJson['lastSync'] == null
           ? null
           : DateTime.tryParse(decodedJson['lastSync']),
+      syncDelayedTo: decodedJson['syncDelayedTo'] == null
+          ? null
+          : DateTime.tryParse(decodedJson['syncDelayedTo']),
     );
   }
 }

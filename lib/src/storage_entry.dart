@@ -24,6 +24,7 @@ class StorageEntry<T> {
   final OnCellSyncError<T> onCellSyncError;
   final ValueChanged<StorageCell<T>> onCellMaxAttemptsReached;
   final bool debug;
+  final DelayDurationGetter getDelayBeforeNextAttempt;
 
   final Future<void> Function() networkUpdateCallback;
 
@@ -64,7 +65,6 @@ class StorageEntry<T> {
   }
 
   StorageEntry({
-    this.debug = false,
     @required this.name,
     @required this.storage,
     @required this.networkCallbacks,
@@ -78,6 +78,13 @@ class StorageEntry<T> {
 
     /// indicates network connection
     this.networkNotifier,
+
+    /// if true, logs are printed to the console
+    this.debug = false,
+
+    /// Returns duration that will be used to delayed
+    /// next sync attempt for cell.
+    this.getDelayBeforeNextAttempt,
   });
 
   Future<List<StorageCell<T>>> _fetchAllCellsFromNetwork() async {
@@ -160,10 +167,10 @@ class StorageEntry<T> {
           needsFetch: false,
         ));
       }
-    } on Exception catch (err) {
+    } on Exception catch (err, stackTrace) {
       debugModePrint(
-        '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err',
-        enabled: debug,
+        '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err $stackTrace',
+        enabled: true,
       );
     } finally {
       /// disable entry fetch for current session
@@ -235,12 +242,14 @@ class StorageEntry<T> {
           ..markAsSynced();
       } catch (err, stackTrace) {
         debugModePrint(
-          '[$runtimeType]: Exception caught during network sync: $err',
-          enabled: debug,
+          '[$runtimeType]: Exception caught during network sync: $err, $stackTrace',
+          enabled: true,
         );
 
         /// register sync attempt on failed sync.
-        cell.registerSyncAttempt();
+        cell.registerSyncAttempt(
+          getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
+        );
         onCellSyncError?.call(cell, err, stackTrace);
       } finally {
         if (cell.maxSyncAttemptsReached) {
