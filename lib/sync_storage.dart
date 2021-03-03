@@ -5,7 +5,7 @@ export 'src/storage_entry.dart' show StorageEntry, StorageCell;
 export 'src/storage/storage.dart' show Storage;
 export 'src/storage/hive_storage.dart' show HiveStorage, HiveStorageController;
 export 'src/callbacks/storage_network_callbacks.dart'
-    show StorageNetworkCallbacks;
+    show StorageNetworkCallbacks, NullCallbacks;
 export 'src/serializer.dart' show Serializer;
 export 'src/services/network_availability_service.dart'
     show NetworkAvailabilityService;

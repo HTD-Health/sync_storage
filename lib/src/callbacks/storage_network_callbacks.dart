@@ -33,7 +33,6 @@ abstract class StorageNetworkCallbacks<T> {
   ///
   /// Returning null, will take no effect. To remove all data from storage,
   /// return empty list.
-  @experimental
   Future<List<T>> onFetch();
 
   /// This method is called on every element deletion.
@@ -87,4 +86,26 @@ class _InlineStorageNetworkCallbacks<T> extends StorageNetworkCallbacks<T> {
 
   @override
   Future<List<T>> onFetch() => _onFetch?.call();
+}
+
+class NullCallbacks<T> extends StorageNetworkCallbacks<T> {
+  @override
+  Future<T> onCreate(T element) {
+    return null;
+  }
+
+  @override
+  Future<void> onDelete(T element) {
+    return null;
+  }
+
+  @override
+  Future<List<T>> onFetch() {
+    return null;
+  }
+
+  @override
+  Future<T> onUpdate(T oldElement, T newElement) {
+    return null;
+  }
 }
