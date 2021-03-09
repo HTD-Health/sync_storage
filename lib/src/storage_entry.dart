@@ -178,7 +178,7 @@ class StorageEntry<T> {
       enabled: debug,
     );
     _needsFetch = true;
-    await syncElementsWithNetwork();
+    await requestNetworkSync();
   }
 
   Future<void> _syncElementsWithNetwork() async {
