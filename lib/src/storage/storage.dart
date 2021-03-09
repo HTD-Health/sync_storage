@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:objectid/objectid.dart';
 import 'package:sync_storage/src/storage/storage_config.dart';
 import 'package:sync_storage/src/storage_entry.dart';
 
@@ -12,37 +13,25 @@ abstract class Storage<T> {
   ///
   /// This is the best place to initialize memory, open files, etc.
   @mustCallSuper
-  Future<void> initialize() async {
-    final storageExists = await exist();
-    if (!storageExists) {
-      await create();
-    }
-
-    await open();
-  }
-
-  /// Whether storage was previously created.
-  Future<bool> exist();
-
-  /// If [exist] return `false` this method will be invoked.
-  @visibleForOverriding
-  Future<void> create();
-
-  /// Called right after [exist] or [create] if exists returns false.
-  ///
-  /// This method should open storage. After [open] call.
-  /// Data should be ready for read and write operations.
-  @visibleForOverriding
-  Future<void> open();
+  Future<void> initialize();
 
   /// Set current config.
-  Future<void> setConfig(StorageConfig config);
+  Future<void> writeConfig(StorageConfig config);
 
   /// Read all cells from the storage.
   Future<List<StorageCell<T>>> readAllCells();
 
   /// Write all cells from the storage.
   Future<void> writeAllCells(List<StorageCell<T>> cells);
+
+  Future<void> writeCell(StorageCell<T> cell);
+
+  Future<void> updateCell(ObjectId cellId, StorageCell<T> cell);
+
+  Future<void> deleteCell(ObjectId cellId);
+
+  /// Read all cells from the storage.
+  // Future<List<StorageCell<T>>> readNotSyncedCells();
 
   /// Clear all storage data
   Future<void> clear();
