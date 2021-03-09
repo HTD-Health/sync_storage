@@ -38,8 +38,8 @@ void main() {
     });
 
     test('Sucessfully creates storages', () async {
-      hiveStorage1 = await controller.getStorage(box1Name);
-      await controller.getStorage(box2Name);
+      hiveStorage1 = controller.getStorage(box1Name);
+      controller.getStorage(box2Name);
       expect(hiveStorage1, isNotNull);
       expect(hiveStorage1, isA<HiveStorage<TestElement>>());
       expect(hiveStorage1.serializer, equals(controller.serializer));
@@ -52,9 +52,9 @@ void main() {
     });
 
     test('Deletes all storages', () async {
-      await controller.getStorage('box3');
-      await controller.getStorage('box4');
-      await controller.getStorage('box5');
+      controller.getStorage('box3');
+      controller.getStorage('box4');
+      controller.getStorage('box5');
       expect(
         controller.registeredStorages,
         equals([
