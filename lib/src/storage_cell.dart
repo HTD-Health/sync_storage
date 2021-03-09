@@ -9,6 +9,9 @@ enum SyncAction {
 }
 
 class StorageCell<T> {
+  /// current cell identifier
+  final ObjectId id;
+
   /// After 5 failed network sync attempts [StorageCell]
   /// should be removed from storage.
   static const maxNetworkSyncAttempts = 5;
@@ -81,6 +84,7 @@ class StorageCell<T> {
   }
 
   StorageCell({
+    ObjectId id,
     @required T element,
     T oldElement,
     DateTime createdAt,
@@ -90,6 +94,7 @@ class StorageCell<T> {
     int networkSyncAttemptsCount,
     DateTime syncDelayedTo,
   })  : _element = element,
+        id = id ?? ObjectId(),
         createdAt = createdAt ?? DateTime.now(),
         _updatedAt = updatedAt,
         _syncDelayedTo = syncDelayedTo,
@@ -154,6 +159,7 @@ class StorageCell<T> {
 
   String toJson(Serializer<T> serializer) {
     final jsonMap = <String, dynamic>{
+      'id': id.hexString,
       'deleted': deleted,
       'syncDelayedTo': _syncDelayedTo?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
@@ -170,27 +176,30 @@ class StorageCell<T> {
   factory StorageCell.fromJson(String data, Serializer<T> serializer) {
     final dynamic decodedJson = json.decode(data);
 
+    final id = decodedJson['id'];
+    final element = decodedJson['element'];
+    final oldElement = decodedJson['oldElement'];
+    final createdAt = decodedJson['createdAt'];
+    final updatedAt = decodedJson['updatedAt'];
+    final lastSync = decodedJson['lastSync'];
+    final syncDelayedTo = decodedJson['syncDelayedTo'];
+
     return StorageCell(
+      id: id == null
+
+          /// If current cell does not contain id, generate a new one.
+          /// (silent data migration)
+          ? ObjectId()
+          : ObjectId.fromHexString(id),
       deleted: decodedJson['deleted'],
       networkSyncAttemptsCount: decodedJson['networkSyncAttemptsCount'],
-      element: decodedJson['element'] == null
-          ? null
-          : serializer.fromJson(decodedJson['element']),
-      oldElement: decodedJson['oldElement'] == null
-          ? null
-          : serializer.fromJson(decodedJson['oldElement']),
-      createdAt: decodedJson['createdAt'] == null
-          ? null
-          : DateTime.tryParse(decodedJson['createdAt']),
-      updatedAt: decodedJson['updatedAt'] == null
-          ? null
-          : DateTime.tryParse(decodedJson['updatedAt']),
-      lastSync: decodedJson['lastSync'] == null
-          ? null
-          : DateTime.tryParse(decodedJson['lastSync']),
-      syncDelayedTo: decodedJson['syncDelayedTo'] == null
-          ? null
-          : DateTime.tryParse(decodedJson['syncDelayedTo']),
+      element: element == null ? null : serializer.fromJson(element),
+      oldElement: oldElement == null ? null : serializer.fromJson(oldElement),
+      createdAt: createdAt == null ? null : DateTime.tryParse(createdAt),
+      updatedAt: updatedAt == null ? null : DateTime.tryParse(updatedAt),
+      lastSync: lastSync == null ? null : DateTime.tryParse(lastSync),
+      syncDelayedTo:
+          syncDelayedTo == null ? null : DateTime.tryParse(syncDelayedTo),
     );
   }
 }
