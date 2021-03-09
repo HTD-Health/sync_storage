@@ -26,9 +26,9 @@ abstract class Storage<T> {
 
   Future<void> writeCell(StorageCell<T> cell);
 
-  Future<void> updateCell(ObjectId cellId, StorageCell<T> cell);
+  Future<void> deleteCell(StorageCell<T> cell);
 
-  Future<void> deleteCell(ObjectId cellId);
+  Future<StorageCell<T>> readCell(ObjectId id);
 
   /// Read all cells from the storage.
   // Future<List<StorageCell<T>>> readNotSyncedCells();

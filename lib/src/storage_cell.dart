@@ -21,9 +21,10 @@ class StorageCell<T> {
   bool get isDelayed =>
       _syncDelayedTo != null && DateTime.now().isBefore(_syncDelayedTo);
   final DateTime createdAt;
-  DateTime _updatedAt;
   DateTime get updatedAt => _updatedAt;
-  DateTime lastSync;
+  DateTime _updatedAt;
+  DateTime get lastSync => _lastSync;
+  DateTime _lastSync;
   bool _deleted;
   bool get deleted => _deleted;
   set deleted(bool value) {
@@ -77,6 +78,10 @@ class StorageCell<T> {
   T _element;
   T get element => _element;
   set element(T value) {
+    final isElementChanged = value != _element;
+    if (!isElementChanged) return;
+
+    /// If element is changed.
     _oldElement = _element;
     _element = value;
 
@@ -89,7 +94,7 @@ class StorageCell<T> {
     T oldElement,
     DateTime createdAt,
     DateTime updatedAt,
-    this.lastSync,
+    DateTime lastSync,
     bool deleted,
     int networkSyncAttemptsCount,
     DateTime syncDelayedTo,
@@ -97,12 +102,13 @@ class StorageCell<T> {
         id = id ?? ObjectId(),
         createdAt = createdAt ?? DateTime.now(),
         _updatedAt = updatedAt,
+        _lastSync = lastSync,
         _syncDelayedTo = syncDelayedTo,
         _oldElement = oldElement,
         _deleted = deleted ?? false,
         _networkSyncAttemptsCount = networkSyncAttemptsCount ?? 0;
 
-  /// Sets [lastSync] date to the same value as [createdAt] to
+  /// Sets [_lastSync] date to the same value as [createdAt] to
   /// indicate that [StorageCell] is synced.
   factory StorageCell.synced({
     @required T element,
@@ -119,6 +125,7 @@ class StorageCell<T> {
     );
   }
 
+  /// Current cell has its representation in network layer.
   bool get wasSynced => lastSync != null;
   bool get needsNetworkSync =>
       !isDelayed &&
@@ -133,7 +140,7 @@ class StorageCell<T> {
 
   /// Mark element as synced with network.
   void markAsSynced() {
-    lastSync = DateTime.now();
+    _lastSync = DateTime.now();
   }
 
   SyncAction get actionNeeded {
@@ -189,7 +196,7 @@ class StorageCell<T> {
 
           /// If current cell does not contain id, generate a new one.
           /// (silent data migration)
-          ? ObjectId()
+          ? null
           : ObjectId.fromHexString(id),
       deleted: decodedJson['deleted'],
       networkSyncAttemptsCount: decodedJson['networkSyncAttemptsCount'],

@@ -178,7 +178,7 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<void> writeAllCells(List<StorageCell<T>> cells) async {
+  Future<void> writeAllCells(Iterable<StorageCell<T>> cells) async {
     await box.clear();
 
     await Future.wait(cells.map(writeCell));
@@ -203,13 +203,17 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<void> deleteCell(ObjectId cellId) {
-    return box.delete(cellId.hexString);
+  Future<void> deleteCell(StorageCell<T> cell) {
+    return box.delete(cell.id.hexString);
   }
 
   @override
-  Future<void> updateCell(ObjectId cellId, StorageCell<T> cell) {
-    return box.put(cellId.hexString, cell.toJson(serializer));
+  Future<StorageCell<T>> readCell(ObjectId id) async {
+    final jsonEncodedCell = await box.get(id.hexString);
+
+    return jsonEncodedCell == null
+        ? null
+        : StorageCell<T>.fromJson(jsonEncodedCell, serializer);
   }
 
   @override

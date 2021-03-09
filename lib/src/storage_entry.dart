@@ -107,28 +107,16 @@ class StorageEntry<T> {
 
     _needsFetch = storage.config.needsFetch;
 
-    _cells = await storage.readAllCells();
+    _cells = (await storage.readAllCells()).toList();
   }
 
-  /// Save updated cells to local DB.
-  Future<void> _sync() async {
+  /// Request network sync from sync_storage
+  Future<void> requestNetworkSync() async {
     if (isSyncing) return _networkSyncTask.future;
-    return Future.wait<void>([
-      syncWithStorage(),
-      if (needsNetworkSync) networkUpdateCallback(),
-    ]);
+    if (needsNetworkSync) await networkUpdateCallback();
   }
 
-  @visibleForTesting
-  Future<void> syncWithStorage() async {
-    debugModePrint(
-      '[$runtimeType]: Wrtiting cells to storage.',
-      enabled: debug,
-    );
-    await storage.writeAllCells(_cells);
-  }
-
-  /// Called externally by [SyncStorage]
+  /// Called externally by [SyncStorage]. Should not be called by user.
   Future<void> syncElementsWithNetwork() async {
     if (isSyncing) return _networkSyncTask.future;
     _networkSyncTask = Completer<void>();
@@ -160,7 +148,10 @@ class StorageEntry<T> {
         /// If cells are null, current cells will not be replaced.
         if (cells != null) {
           _cells = cells;
-          await syncWithStorage();
+
+          /// new cells are fetched from the network.
+          /// Current cells should be replaced with new one.
+          await storage.writeAllCells(cells);
         }
 
         await storage.writeConfig(storage.config.copyWith(
@@ -232,6 +223,7 @@ class StorageEntry<T> {
               await networkCallbacks.onDelete(cell.element);
             }
             _cells.remove(cell);
+            await storage.deleteCell(cell);
             break;
 
           default:
@@ -250,10 +242,15 @@ class StorageEntry<T> {
           .._oldElement = null
           ..resetSyncAttemptsCount()
           ..markAsSynced();
+
+        if (!cell.deleted) {
+          /// Changes were made for current cell. It should be synced with storage.
+          await storage.writeCell(cell);
+        }
       } catch (err, stackTrace) {
         debugModePrint(
           '[$runtimeType]: Exception caught during network sync: $err, $stackTrace',
-          enabled: true,
+          enabled: debug,
         );
 
         /// register sync attempt on failed sync.
@@ -268,9 +265,6 @@ class StorageEntry<T> {
         }
       }
     }
-
-    /// Save changes to storage.
-    await syncWithStorage();
 
     /// If new changes to elements have been maed sync them with network.
     if (needsElementsSync && networkAvailable) {
@@ -307,56 +301,78 @@ class StorageEntry<T> {
     await storage.dispose();
   }
 
-  Future<StorageCell<T>> updateElementWhere(
-    bool test(T cell),
-    T updatedEntry,
-  ) async {
-    final cell =
-        _cells.firstWhere((cell) => test(cell.element), orElse: () => null);
-
-    if (cell == null) {
-      throw ArgumentError('There is no entry matching the test.');
-    }
-
-    cell.element = updatedEntry;
-
-    await _sync();
-    return cell;
-  }
-
-  Future<StorageCell<T>> createElement(T element) async {
-    final cell = StorageCell(element: element);
+  Future<void> addCell(StorageCell<T> cell) async {
     _cells.add(cell);
 
-    await _sync();
+    await storage.writeCell(cell);
+
+    await requestNetworkSync();
+  }
+
+  /// Wrapper around [addCell] method that instead of [StorageCell] accepts element.
+  Future<StorageCell<T>> createElement(T element) async {
+    final cell = StorageCell<T>(element: element);
+    await addCell(cell);
 
     return cell;
   }
 
+  /// Enable creating multiple [StorageCell]s based on elements.
   Future<List<StorageCell<T>>> createElements(List<T> elements) async {
-    final cells = [
-      for (final element in elements) StorageCell(element: element)
-    ];
+    final cells =
+        elements.map((element) => StorageCell(element: element)).toList();
     _cells.addAll(cells);
 
-    await _sync();
+    await Future.wait(cells.map(storage.writeCell));
+
+    await requestNetworkSync();
     return cells;
   }
 
-  Future<StorageCell<T>> deleteElementWhere(bool test(T cell)) async {
-    final cell = _cells.firstWhere(
-      (cell) => test(cell.element),
-      orElse: () => null,
-    );
+  /// This method allow cell updating.
+  Future<void> updateCell(
+    StorageCell<T> cell,
+  ) async {
+    ArgumentError.checkNotNull(cell, 'cell');
 
-    if (cell == null) {
-      throw ArgumentError('There is no cell matching the test.');
+    final currentCell = await storage.readCell(cell.id);
+    if (currentCell == null) {
+      throw ArgumentError.value(
+        cell,
+        'cell',
+        'Cannot update cell with id="${cell.id.hexString}. '
+            'Cell with provided id does not exist.',
+      );
+    }
+    final cellIndex = _cells.indexOf(cell);
+    _cells[cellIndex] = cell;
+
+    await storage.writeCell(cell);
+    await requestNetworkSync();
+  }
+
+  Future<void> deleteCell(StorageCell<T> cell) async {
+    final currentCell = await storage.readCell(cell.id);
+
+    if (currentCell == null) {
+      throw ArgumentError.value(
+        cell,
+        'cell',
+        'Cannot delete cell with id="${cell.id.hexString}. '
+            'Cell with provided id does not exist.',
+      );
     }
 
-    cell.deleted = true;
+    if (cell.wasSynced) {
+      cell.deleted = true;
 
-    await _sync();
-    return cell;
+      /// save updated cell with delete flag
+      /// Cell will be removed from storage after successfull delete callback.
+      await updateCell(cell);
+    } else {
+      _cells.remove(cell);
+      await storage.deleteCell(cell);
+    }
   }
 
   /// Setting elements by this method will mark all as synced.
@@ -365,52 +381,19 @@ class StorageEntry<T> {
   Future<List<StorageCell<T>>> setElements(List<T> elements) async {
     final time = DateTime.now();
 
-    final cells = [
-      for (final element in elements)
-        StorageCell.synced(
-          element: element,
-          createdAt: time,
-        )
-    ];
+    final cells = elements
+        .map((element) => StorageCell.synced(
+              element: element,
+              createdAt: time,
+            ))
+        .toList();
 
     _cells
       ..clear()
       ..addAll(cells);
 
-    await _sync();
+    await storage.writeAllCells(cells);
 
-    return cells;
-  }
-
-  /// Removes cell from entry
-  ///
-  /// This will not cause network DELETE callback invocation.
-  StorageCell<T> removeCellWhere(bool test(T element)) {
-    ArgumentError.checkNotNull(test, 'test');
-
-    final cell = _cells.firstWhere(
-      (cell) => test(cell.element),
-      orElse: () => null,
-    );
-
-    if (cell != null) {
-      _cells.remove(cell);
-    }
-
-    return cell;
-  }
-
-  /// This method adds cell to this entry.
-  ///
-  /// If provided cell `needsNetworkSync` it will trigger appropriate network callback.
-  Future<void> putCell(StorageCell<T> cell) async {
-    ArgumentError.checkNotNull(cell, 'cell');
-    if (_cells.contains(cell)) {
-      throw ArgumentError('Provided cell aready exists.');
-    }
-
-    _cells.add(cell);
-
-    await _sync();
+    return cells.toList();
   }
 }

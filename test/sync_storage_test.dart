@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:hive/hive.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/src/sync_storage.dart';
@@ -30,6 +28,7 @@ void main() {
 
     /// remove box if already exists
     setUpAll(() async {
+      await Hive.deleteBoxFromDisk(boxName);
       Hive.init('./');
     });
 
@@ -105,9 +104,12 @@ void main() {
     test('Deleting works correctly', () async {
       verifyNever(networkCallbacks.onDelete(any)).called(0);
 
-      final cell = await entry.deleteElementWhere((cell) => cell.value == 2);
-      final cell2 = await entry.deleteElementWhere((cell) => cell.value == 3);
-      verify(networkCallbacks.onDelete(cell.element)).called(1);
+      final cell1 = entry.cells.first;
+      final cell2 = entry.cells.last;
+
+      await entry.deleteCell(cell1);
+      await entry.deleteCell(cell2);
+      verify(networkCallbacks.onDelete(cell1.element)).called(1);
       verify(networkCallbacks.onDelete(cell2.element)).called(1);
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
@@ -142,12 +144,10 @@ void main() {
       final currentElement = oldCell.element;
 
       expect(oldCell.element, isNot(equals(updatedTestElement)));
-      final updated = await entry.updateElementWhere(
-        (element) => element.value == oldCell.element.value,
-        updatedTestElement,
-      );
 
-      expect(oldCell, equals(updated));
+      oldCell.element = updatedTestElement;
+      await entry.updateCell(oldCell);
+
       expect(oldCell.element, equals(updatedTestElement));
 
       /// Old element will be removed after sync.
@@ -191,8 +191,8 @@ void main() {
         expect(entry.cellsToSync, hasLength(1));
 
         final updatedElement = const TestElement(1000);
-        await entry.updateElementWhere(
-            (element) => element.value == newElement.value, updatedElement);
+        storageCell.element = updatedElement;
+        await entry.updateCell(storageCell);
         expect(storageCell.element.value, updatedElement.value);
         expect(entry.cellsToSync, hasLength(1));
 
@@ -340,23 +340,22 @@ void main() {
         expect(entry2.cells, hasLength(0));
 
         final newElement = const TestElement(999);
-        entry1.createElement(newElement);
+        final cell = await entry1.createElement(newElement);
 
         expect(entry1.needsElementsSync, isTrue);
         expect(entry2.needsElementsSync, isFalse);
         expect(entry1.cells, hasLength(1));
         expect(entry2.cells, hasLength(0));
 
-        final removedCell =
-            entry1.removeCellWhere((element) => element.value == 999);
+        await entry1.deleteCell(cell);
 
-        expect(removedCell.element, equals(newElement));
+        expect(cell.element, equals(newElement));
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
         expect(entry1.cells, hasLength(0));
         expect(entry2.cells, hasLength(0));
 
-        await entry2.putCell(removedCell);
+        await entry2.addCell(cell);
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isTrue);
         expect(entry1.cells, hasLength(0));
