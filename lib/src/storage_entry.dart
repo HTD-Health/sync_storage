@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
+import 'package:objectid/objectid.dart';
 import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/serializer.dart';
@@ -162,7 +163,7 @@ class StorageEntry<T> {
           await syncWithStorage();
         }
 
-        await storage.setConfig(storage.config.copyWith(
+        await storage.writeConfig(storage.config.copyWith(
           lastFetch: DateTime.now(),
           needsFetch: false,
         ));

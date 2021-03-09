@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:meta/meta.dart';
+import 'package:objectid/objectid.dart';
 import 'package:sync_storage/src/storage/storage_config.dart';
 import 'package:sync_storage/src/storage/storage.dart';
 
@@ -132,19 +133,22 @@ class HiveStorage<T> extends Storage<T> {
   @override
   Future<void> initialize() async {
     await Hive.initFlutter();
-    await super.initialize();
+
+    final storageExists = await exist();
+    if (!storageExists) {
+      await create();
+    }
+
+    await open();
   }
 
-  @override
   Future<bool> exist() => Hive.boxExists(boxName);
 
-  @override
   Future<void> create() async {
     /// Nothing to do here as HIVE storage automatically creates databes
     /// during open operation.
   }
 
-  @override
   Future<void> open() async {
     box = await Hive.openLazyBox<String>(boxName);
     await _loadConfig();
@@ -155,9 +159,9 @@ class HiveStorage<T> extends Storage<T> {
     final values = await Future.wait(
         box.keys.where((key) => key != _configKey).map((key) => box.get(key)));
 
-    return [
-      for (final value in values) StorageCell<T>.fromJson(value, serializer)
-    ];
+    return values
+        .map((value) => StorageCell<T>.fromJson(value, serializer))
+        .toList();
   }
 
   Future<void> _loadConfig() async {
@@ -166,8 +170,7 @@ class HiveStorage<T> extends Storage<T> {
     _config = StorageConfig.fromJson(configData);
   }
 
-  @override
-  Future<void> setConfig(StorageConfig config) async {
+  Future<void> writeConfig(StorageConfig config) async {
     ArgumentError.checkNotNull(config, 'config');
 
     _config = config;
@@ -177,10 +180,10 @@ class HiveStorage<T> extends Storage<T> {
   @override
   Future<void> writeAllCells(List<StorageCell<T>> cells) async {
     await box.clear();
-    await box.addAll([
-      for (final cell in cells) cell.toJson(serializer),
-    ]);
-    await setConfig(config);
+
+    await Future.wait(cells.map(writeCell));
+
+    await writeConfig(config);
   }
 
   @override
@@ -197,5 +200,20 @@ class HiveStorage<T> extends Storage<T> {
   @override
   Future<void> delete() async {
     await box.deleteFromDisk();
+  }
+
+  @override
+  Future<void> deleteCell(ObjectId cellId) {
+    return box.delete(cellId.hexString);
+  }
+
+  @override
+  Future<void> updateCell(ObjectId cellId, StorageCell<T> cell) {
+    return box.put(cellId.hexString, cell.toJson(serializer));
+  }
+
+  @override
+  Future<void> writeCell(StorageCell<T> cell) {
+    return box.put(cell.id.hexString, cell.toJson(serializer));
   }
 }
