@@ -220,4 +220,10 @@ class HiveStorage<T> extends Storage<T> {
   Future<void> writeCell(StorageCell<T> cell) {
     return box.put(cell.id.hexString, cell.toJson(serializer));
   }
+
+  @override
+  Future<List<StorageCell<T>>> readNotSyncedCells() async {
+    final cells = await readAllCells();
+    return cells.where((cell) => cell.needsNetworkSync).toList();
+  }
 }
