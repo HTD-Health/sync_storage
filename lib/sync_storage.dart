@@ -12,3 +12,5 @@ export 'src/services/network_availability_service.dart'
     show NetworkAvailabilityService;
 export 'src/services/network_availability_lookup_service.dart'
     show NetworkAvailabilityLookupService;
+
+export 'package:objectid/objectid.dart';
