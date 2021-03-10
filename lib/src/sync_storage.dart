@@ -152,7 +152,7 @@ class SyncStorage {
 
     debugModePrint(
       '[SyncStorage]: Registered entry with name: "$name", '
-      'Available elements: ${entry.cells.length}.',
+      'Elements to sync: ${entry.cellsToSync.length}.',
       enabled: debug,
     );
 

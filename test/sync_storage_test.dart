@@ -68,32 +68,37 @@ void main() {
     });
 
     test(
-        'Succesfully feel storage without notyfing '
-        'network about changes.', () async {
-      expect(entry.cells, hasLength(5));
+        'setElements removes all ements that neeeds sync and do not cause network sync',
+        () async {
+      entry.createElement(TestElement(20));
+      entry.createElement(TestElement(21));
+      expect(entry.cellsToSync, hasLength(2));
       await entry.setElements([
         for (int i = 0; i < 10; i++) TestElement(i),
       ]);
-      expect(entry.cells, hasLength(10));
+      expect(entry.cellsToSync, isEmpty);
       expect(entry.needsNetworkSync, isFalse);
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
       verifyNever(networkCallbacks.onDelete(any)).called(0);
     });
 
-    test('needsNetworkSync getters works correctly.', () async {
-      expect(
-        entry.needsNetworkSync,
-        isFalse,
-      );
+    test('needsNetworkSync getter works correctly.', () async {
+      await networkAvailabilityService.goOffline();
 
-      final firstEntry = entry.cells.first;
+      expect(entry.needsNetworkSync, isFalse);
+      expect(entry.cellsToSync, isEmpty);
 
-      expect(firstEntry.deleted, isFalse);
-      expect(firstEntry.needsNetworkSync, isFalse);
-      entry.cells.first.deleted = true;
-      expect(firstEntry.deleted, isTrue);
-      expect(firstEntry.needsNetworkSync, isTrue);
+      final cells = await storage.readAllCells();
+
+      expect(cells.where((cell) => cell.needsNetworkSync).isEmpty, isTrue);
+
+      final cell = cells.first;
+      cell.element = TestElement(12);
+      expect(cell.needsNetworkSync, isTrue);
+      await entry.updateCell(cell);
+
+      expect(cells.where((cell) => cell.needsNetworkSync).isEmpty, isFalse);
 
       expect(
         entry.needsNetworkSync,
@@ -103,9 +108,10 @@ void main() {
 
     test('Deleting works correctly', () async {
       verifyNever(networkCallbacks.onDelete(any)).called(0);
+      final cells = await storage.readAllCells();
 
-      final cell1 = entry.cells.first;
-      final cell2 = entry.cells.last;
+      final cell1 = cells.first;
+      final cell2 = cells.last;
 
       await entry.deleteCell(cell1);
       await entry.deleteCell(cell2);
@@ -140,7 +146,9 @@ void main() {
 
       final updatedTestElement = const TestElement(200);
 
-      final oldCell = entry.cells.last;
+      final cells = await storage.readAllCells();
+
+      final oldCell = cells.last;
       final currentElement = oldCell.element;
 
       expect(oldCell.element, isNot(equals(updatedTestElement)));
@@ -252,21 +260,26 @@ void main() {
           delaysBeforeNextAttempt[i] = Duration(milliseconds: 50 * i);
         }
 
+        var cells = await storage.readAllCells();
+
         /// 5 elements in storage
-        expect(entry.cells, hasLength(5));
+        expect(cells, hasLength(5));
+        expect(entry.cellsToSync, hasLength(0));
 
         final cellFuture = entry.createElement(const TestElement(100));
 
         /// element is added to storage
-        expect(entry.cells, hasLength(6));
+        expect(entry.cellsToSync, hasLength(1));
 
         final cell = await cellFuture;
+        cells = await storage.readAllCells();
+        expect(cells, hasLength(6));
 
         /// make sure that after each delay cells are still delayed.
         for (var i = cell.networkSyncAttemptsCount;
             i < StorageCell.maxNetworkSyncAttempts;
             i++) {
-          expect(entry.cells, hasLength(6));
+          expect(entry.cellsToSync, hasLength(1));
           expect(cell.isDelayed, isTrue);
           expect(
               cell.syncDelayedTo,
@@ -281,11 +294,13 @@ void main() {
         }
 
         /// after max attempts cell should be removed from the storage
-        expect(entry.cells, hasLength(5));
+        expect(entry.cellsToSync, hasLength(0));
+
+        cells = await storage.readAllCells();
 
         /// after [StorageCell.maxNetworkSyncAttempts] element is removed
         /// from storage.
-        expect(entry.cells, hasLength(5));
+        expect(cells, hasLength(5));
 
         verify(networkCallbacks.onCreate(any)).called(
           StorageCell.maxNetworkSyncAttempts,
@@ -305,16 +320,27 @@ void main() {
       );
       StorageEntry<TestElement> entry1;
       StorageEntry<TestElement> entry2;
+      HiveStorageMock<TestElement> storage1;
+      HiveStorageMock<TestElement> storage2;
 
       setUpAll(() async {
+        storage1 = HiveStorageMock<TestElement>(
+          'box1',
+          const TestElementSerializer(),
+        );
+        storage2 = HiveStorageMock<TestElement>(
+          'box2',
+          const TestElementSerializer(),
+        );
+
         entry1 = await syncStorage.registerEntry<TestElement>(
           name: 'box1',
-          storage: HiveStorageMock('box1', const TestElementSerializer()),
+          storage: storage1,
           networkCallbacks: networkCallbacks,
         );
         entry2 = await syncStorage.registerEntry<TestElement>(
           name: 'box2',
-          storage: HiveStorageMock('box2', const TestElementSerializer()),
+          storage: storage2,
           networkCallbacks: networkCallbacks,
         );
 
@@ -334,32 +360,45 @@ void main() {
       test('Succesfully moves cells between entries', () async {
         await networkAvailabilityService.goOffline();
 
+        var cells1 = await storage1.readAllCells();
+        var cells2 = await storage2.readAllCells();
+
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
-        expect(entry1.cells, hasLength(0));
-        expect(entry2.cells, hasLength(0));
+        expect(cells1, hasLength(0));
+        expect(cells2, hasLength(0));
 
         final newElement = const TestElement(999);
         final cell = await entry1.createElement(newElement);
 
+        cells1 = await storage1.readAllCells();
+        cells2 = await storage2.readAllCells();
+
         expect(entry1.needsElementsSync, isTrue);
         expect(entry2.needsElementsSync, isFalse);
-        expect(entry1.cells, hasLength(1));
-        expect(entry2.cells, hasLength(0));
+        expect(cells1, hasLength(1));
+        expect(cells2, hasLength(0));
 
         await entry1.deleteCell(cell);
+
+        cells1 = await storage1.readAllCells();
+        cells2 = await storage2.readAllCells();
 
         expect(cell.element, equals(newElement));
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
-        expect(entry1.cells, hasLength(0));
-        expect(entry2.cells, hasLength(0));
+        expect(cells1, hasLength(0));
+        expect(cells2, hasLength(0));
 
         await entry2.addCell(cell);
+
+        cells1 = await storage1.readAllCells();
+        cells2 = await storage2.readAllCells();
+
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isTrue);
-        expect(entry1.cells, hasLength(0));
-        expect(entry2.cells, hasLength(1));
+        expect(cells1, hasLength(0));
+        expect(cells2, hasLength(1));
 
         verifyNever(networkCallbacks.onCreate(newElement)).called(0);
 
@@ -409,18 +448,24 @@ void main() {
         await networkAvailabilityService.goOnline();
 
         verifyNever(networkCallbacks.onFetch()).called(0);
-
+        final storage = HiveStorageMock(boxName, const TestElementSerializer());
         entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
-          storage: HiveStorageMock(boxName, const TestElementSerializer()),
+          storage: storage,
           networkCallbacks: networkCallbacks,
         );
 
-        expect(entry.elements, equals(elementsToFetch));
+        verify(networkCallbacks.onFetch()).called(1);
+        final cells = await storage.readAllCells();
+
+        expect(
+          cells.map((e) => e.element.value).toList(),
+          equals(
+            elementsToFetch.map((e) => e.value).toList(),
+          ),
+        );
         expect(entry.storage.config.needsFetch, isFalse);
         expect(entry.storage.config.lastFetch, isA<DateTime>());
-
-        verify(networkCallbacks.onFetch()).called(1);
       });
 
       test('Do not fetch data when already fetched.', () async {
@@ -429,15 +474,19 @@ void main() {
 
         /// Create entry
         /// Entry will be automatically synced with the network
+        var storage = HiveStorageMock(boxName, const TestElementSerializer());
         entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
-          storage: HiveStorageMock(boxName, const TestElementSerializer()),
+          storage: storage,
           networkCallbacks: networkCallbacks,
         );
 
         /// check whether entry is synced correctly
         verify(networkCallbacks.onFetch()).called(1);
-        final elements = entry.elements.toList();
+
+        final cells = await storage.readAllCells();
+        final elements = cells.map((e) => e.element).toList();
+
         expect(elements, hasLength(2));
         expect(elements[0].value, elementsToFetch[0].value);
         expect(elements[1].value, elementsToFetch[1].value);
@@ -451,9 +500,10 @@ void main() {
         await syncStorage.disposeAllEntries();
 
         /// Recreate entry
+        storage = HiveStorageMock(boxName, const TestElementSerializer());
         entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
-          storage: HiveStorageMock(boxName, const TestElementSerializer()),
+          storage: storage,
           networkCallbacks: networkCallbacks,
         );
 
@@ -469,16 +519,22 @@ void main() {
         /// Go offline
         await networkAvailabilityService.goOffline();
 
+        final storage = HiveStorageMock(
+          'onFetch_offline_test',
+          const TestElementSerializer(),
+        );
+
         /// Create entry
         entry = await syncStorage.registerEntry<TestElement>(
           name: 'onFetch_offline_test',
-          storage: HiveStorageMock(
-              'onFetch_offline_test', const TestElementSerializer()),
+          storage: storage,
           networkCallbacks: networkCallbacks,
         );
 
+        var cells = await storage.readAllCells();
+
         verifyNever(networkCallbacks.onFetch()).called(0);
-        expect(entry.cells, hasLength(0));
+        expect(cells, hasLength(0));
         expect(entry.storage.config.needsFetch, isTrue);
         expect(entry.storage.config.lastFetch, isNull);
 
@@ -492,11 +548,11 @@ void main() {
         verifyNever(networkCallbacks.onFetch()).called(0);
         verifyNever(networkCallbacks.onCreate(any)).called(0);
 
-        /// Elements are saved to storage
-        var elements = entry.elements.toList();
+        cells = await storage.readAllCells();
+        var elements = cells.map((e) => e.element).toList();
         expect(elements, hasLength(2));
-        expect(elements[0], equals(newElement1));
-        expect(elements[1], equals(newElement2));
+        expect(elements[0].value, equals(newElement1.value));
+        expect(elements[1].value, equals(newElement2.value));
 
         /// Go online
         await networkAvailabilityService.goOnline();
@@ -507,11 +563,14 @@ void main() {
         verify(networkCallbacks.onFetch()).called(1);
 
         /// Storage data is fetched from the network
-        elements = entry.elements.toList();
+        cells = await storage.readAllCells();
+        elements = cells.map((e) => e.element).toList();
         expect(elements, hasLength(2));
-        expect(elements[0], equals(elementsToFetch[0]));
-        expect(elements[1], equals(elementsToFetch[1]));
+        expect(elements[0].value, equals(elementsToFetch[0].value));
+        expect(elements[1].value, equals(elementsToFetch[1].value));
       });
     });
   });
 }
+
+
