@@ -246,7 +246,7 @@ class StorageEntry<T> {
         cell.markAsSynced();
 
         // synced cell should be removed from cells to sync.
-        _cellsToSync.remove(cell);
+        _cellsToSync.removeWhere((c) => c.id == cell.id);
 
         if (cell.deleted) {
           // deleted celll should be removed from the storage
@@ -269,7 +269,7 @@ class StorageEntry<T> {
         onCellSyncError?.call(cell, err, stackTrace);
       } finally {
         if (cell.maxSyncAttemptsReached) {
-          _cellsToSync.remove(cell);
+          _cellsToSync.removeWhere((c) => c.id == cell.id);
           await storage.deleteCell(cell);
           onCellMaxAttemptsReached?.call(cell);
         }
@@ -342,7 +342,7 @@ class StorageEntry<T> {
     return cells;
   }
 
-  /// This method allow cell updating.
+  /// Update element in storage and network.
   Future<void> updateCell(
     StorageCell<T> cell,
   ) async {
@@ -379,6 +379,7 @@ class StorageEntry<T> {
     await requestNetworkSync();
   }
 
+  /// Deletes current cell from storage and network.
   Future<void> deleteCell(StorageCell<T> cell) async {
     final currentCell = await storage.readCell(cell.id);
 
@@ -398,7 +399,7 @@ class StorageEntry<T> {
       /// Cell will be removed from storage after successfull delete callback.
       await updateCell(cell);
     } else {
-      _cellsToSync.remove(cell);
+      _cellsToSync.removeWhere((cell) => cell.id == cell.id);
       await storage.deleteCell(cell);
     }
   }

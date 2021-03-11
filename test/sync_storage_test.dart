@@ -7,6 +7,11 @@ import 'package:test/test.dart';
 
 import 'data.dart';
 
+class HasElementValue extends CustomMatcher {
+  HasElementValue(matcher) : super("Storage with id that is", "id", matcher);
+  int featureValueOf(actual) => (actual as TestElement).value;
+}
+
 void main() {
   group('SyncStorage', () {
     final boxName = 'BOX_NAME';
@@ -115,8 +120,14 @@ void main() {
 
       await entry.deleteCell(cell1);
       await entry.deleteCell(cell2);
-      verify(networkCallbacks.onDelete(cell1.element)).called(1);
-      verify(networkCallbacks.onDelete(cell2.element)).called(1);
+      verify(
+        networkCallbacks
+            .onDelete(argThat(HasElementValue(equals(cell1.element.value)))),
+      ).called(1);
+      verify(
+        networkCallbacks
+            .onDelete(argThat(HasElementValue(equals(cell2.element.value)))),
+      ).called(1);
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
 
