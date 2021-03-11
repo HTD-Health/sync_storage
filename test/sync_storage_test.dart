@@ -94,7 +94,7 @@ void main() {
       expect(cells.where((cell) => cell.needsNetworkSync).isEmpty, isTrue);
 
       final cell = cells.first;
-      cell.element = TestElement(12);
+      cell.updateElement(TestElement(12));
       expect(cell.needsNetworkSync, isTrue);
       await entry.updateCell(cell);
 
@@ -153,7 +153,7 @@ void main() {
 
       expect(oldCell.element, isNot(equals(updatedTestElement)));
 
-      oldCell.element = updatedTestElement;
+      oldCell.updateElement(updatedTestElement);
       await entry.updateCell(oldCell);
 
       expect(oldCell.element, equals(updatedTestElement));
@@ -199,7 +199,7 @@ void main() {
         expect(entry.cellsToSync, hasLength(1));
 
         final updatedElement = const TestElement(1000);
-        storageCell.element = updatedElement;
+        storageCell.updateElement(updatedElement);
         await entry.updateCell(storageCell);
         expect(storageCell.element.value, updatedElement.value);
         expect(entry.cellsToSync, hasLength(1));
@@ -285,7 +285,8 @@ void main() {
               cell.syncDelayedTo,
               (DateTime syncDelayedTo) =>
                   DateTime.now().isBefore(syncDelayedTo));
-          expect(cell.needsNetworkSync, isFalse);
+          expect(cell.needsNetworkSync, isTrue);
+          expect(cell.isReadyForSync, isFalse);
 
           await Future.delayed(
             delaysBeforeNextAttempt[cell.networkSyncAttemptsCount],
