@@ -39,12 +39,12 @@ class StorageEntry<T> {
 
   bool get needsElementsSync =>
       _cellsToSync.isNotEmpty &&
-
-      /// there is a chance that cell need to be synced but sync is delayed by some type of error.
-      _cellsToSync.any((element) => element.needsNetworkSync);
+      // there is a chance that cell need to be synced
+      // but sync is delayed. It could be delayed due to some
+      // type of error.
+      _cellsToSync.any((cell) => cell.isReadyForSync);
 
   /// Check if [StorageEntry] contains not synced [StorageCell].
-
   bool get needsNetworkSync => needsFetch || needsElementsSync;
 
   /// Whether [StorageEntry] is syncing elements with network.
@@ -56,6 +56,8 @@ class StorageEntry<T> {
 
   /// return [StorageCell]s that are saved only in the local storage.
   List<StorageCell<T>> get cellsToSync => List.unmodifiable(_cellsToSync);
+  List<StorageCell<T>> get cellsReadyToSync =>
+      _cellsToSync.where((cell) => cell.isReadyForSync).toList();
 
   Iterable<T> get elementsToSync sync* {
     for (final cell in cellsToSync) yield cell.element;
@@ -145,7 +147,7 @@ class StorageEntry<T> {
 
         /// If cells are null, current cells will not be replaced.
         if (cells != null) {
-          /// All cells are fetched from the backend. All cells are uptodate.
+          /// All cells are fetched from the backend. All cells are up-to-date.
           _cellsToSync.clear();
 
           /// new cells are fetched from the network.
@@ -181,7 +183,7 @@ class StorageEntry<T> {
   }
 
   Future<void> _syncElementsWithNetwork() async {
-    for (final cell in cellsToSync) {
+    for (final cell in cellsReadyToSync) {
       /// end task when network is not available
       if (!networkAvailable) break;
 
@@ -224,31 +226,37 @@ class StorageEntry<T> {
             }
             break;
 
+          case SyncAction.none:
+            debugModePrint(
+              '[$runtimeType]: No action is required for cell with id=${cell.id.hexString}. Skipping...',
+              enabled: debug,
+            );
+            break;
           default:
             debugModePrint(
               '[$runtimeType]: Not supported sync action, skipping...',
               enabled: debug,
             );
-            continue;
+            break;
         }
 
-        cell
+        if (newElement != null) {
+          // If newElement returned from onUpdate or onCreate functions is not null,
+          // cell element will be replaced with the new one.
+          cell._element = newElement;
+        }
 
-          /// If newElement returned from onUpdate or onCreate functions is not null,
-          /// cell element will be replaced with the new one.
-          ..element = newElement ?? cell.element
-          .._oldElement = null
-          ..resetSyncAttemptsCount()
-          ..markAsSynced();
+        // After successfull sync action. Cell is marked as synced.
+        cell.markAsSynced();
 
-        /// synced cell should be removed from cells to sync.
+        // synced cell should be removed from cells to sync.
         _cellsToSync.remove(cell);
 
         if (cell.deleted) {
-          /// deleted celll should be removed from the storage
+          // deleted celll should be removed from the storage
           await storage.deleteCell(cell);
         } else {
-          /// Changes were made for current cell. It should be synced with storage.
+          // Changes were made for current cell. It should be synced with storage.
           await storage.writeCell(cell);
         }
       } catch (err, stackTrace) {
@@ -388,7 +396,7 @@ class StorageEntry<T> {
     }
 
     if (cell.wasSynced) {
-      cell.deleted = true;
+      cell.markAsDeleted();
 
       /// save updated cell with delete flag
       /// Cell will be removed from storage after successfull delete callback.

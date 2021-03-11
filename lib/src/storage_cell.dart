@@ -6,6 +6,7 @@ enum SyncAction {
   create,
   update,
   delete,
+  none,
 }
 
 class StorageCell<T> {
@@ -27,12 +28,6 @@ class StorageCell<T> {
   DateTime _lastSync;
   bool _deleted;
   bool get deleted => _deleted;
-  set deleted(bool value) {
-    if (_deleted != value) {
-      _deleted = value;
-      _updatedAt = DateTime.now();
-    }
-  }
 
   /// The number of times that network synchronization was retried.
   int get networkSyncAttemptsCount => _networkSyncAttemptsCount;
@@ -77,13 +72,25 @@ class StorageCell<T> {
   T get oldElement => _oldElement;
   T _element;
   T get element => _element;
-  set element(T value) {
-    final isElementChanged = value != _element;
+  void updateElement(T newElement) {
+    if (deleted) {
+      throw StateError('Cannot update element which is marked as deleted.');
+    }
+
+    if (newElement == element) {
+      throw ArgumentError.value(
+        newElement,
+        'newElement',
+        'The element cannot be updated by itself (newElement == element).',
+      );
+    }
+
+    final isElementChanged = newElement != _element;
     if (!isElementChanged) return;
 
     /// If element is changed.
     _oldElement = _element;
-    _element = value;
+    _element = newElement;
 
     _updatedAt = DateTime.now();
   }
@@ -127,11 +134,14 @@ class StorageCell<T> {
 
   /// Current cell has its representation in network layer.
   bool get wasSynced => lastSync != null;
-  bool get needsNetworkSync =>
-      !isDelayed &&
-      !(wasSynced &&
-          ((updatedAt != null && !updatedAt.isAfter(lastSync)) ||
-              (updatedAt == null && !createdAt.isAfter(lastSync))));
+  bool get needsNetworkSync => !(wasSynced &&
+      // Element was updated after last sync
+      ((updatedAt != null && !updatedAt.isAfter(lastSync)) ||
+          // element was created after last sync
+          (updatedAt == null && !createdAt.isAfter(lastSync))));
+
+  /// Whether current cell could be synced with network.
+  bool get isReadyForSync => !isDelayed && needsNetworkSync;
 
   /// Marking this cell as ready for update.
   void markAsUpdateNeeded() {
@@ -140,11 +150,22 @@ class StorageCell<T> {
 
   /// Mark element as synced with network.
   void markAsSynced() {
+    _oldElement = null;
     _lastSync = DateTime.now();
+    resetSyncAttemptsCount();
+  }
+
+  void markAsDeleted() {
+    if (!_deleted) {
+      _deleted = true;
+      _updatedAt = DateTime.now();
+    }
   }
 
   SyncAction get actionNeeded {
-    if (!needsNetworkSync) return null;
+    if (!needsNetworkSync) {
+      return SyncAction.none;
+    }
 
     /// when cell is marked as deleted it will be removed from backend and
     /// after that from the storage.
@@ -162,6 +183,20 @@ class StorageCell<T> {
     } else {
       return SyncAction.create;
     }
+  }
+
+  StorageCell copy() {
+    return StorageCell(
+      id: id,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      lastSync: lastSync,
+      syncDelayedTo: syncDelayedTo,
+      deleted: deleted,
+      networkSyncAttemptsCount: networkSyncAttemptsCount,
+      element: element,
+      oldElement: oldElement,
+    );
   }
 
   String toJson(Serializer<T> serializer) {
