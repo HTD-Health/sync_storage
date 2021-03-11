@@ -277,7 +277,7 @@ void main() {
 
         /// make sure that after each delay cells are still delayed.
         for (var i = cell.networkSyncAttemptsCount;
-            i < StorageCell.maxNetworkSyncAttempts;
+            i < cell.maxNetworkSyncAttempts;
             i++) {
           expect(entry.cellsToSync, hasLength(1));
           expect(cell.isDelayed, isTrue);
@@ -304,11 +304,11 @@ void main() {
         expect(cells, hasLength(5));
 
         verify(networkCallbacks.onCreate(any)).called(
-          StorageCell.maxNetworkSyncAttempts,
+          cell.maxNetworkSyncAttempts,
         );
         expect(
           cell.networkSyncAttemptsCount,
-          equals(StorageCell.maxNetworkSyncAttempts),
+          equals(cell.maxNetworkSyncAttempts),
         );
       });
     });

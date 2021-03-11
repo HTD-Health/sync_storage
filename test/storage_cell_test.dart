@@ -38,6 +38,94 @@ void main() {
       expect(cell.wasSynced, isTrue);
     });
 
+    test("Copy method works correctly", () {
+      final cell = StorageCell(element: TestElement(1));
+      final copiedCell = cell.copy();
+
+      expect(copiedCell.id, equals(cell.id));
+      expect(copiedCell.isReadyForSync, equals(cell.isReadyForSync));
+      expect(copiedCell.isDelayed, equals(cell.isDelayed));
+      expect(copiedCell.createdAt, equals(cell.createdAt));
+      expect(copiedCell.updatedAt, equals(cell.updatedAt));
+      expect(copiedCell.lastSync, equals(cell.lastSync));
+      expect(copiedCell.syncDelayedTo, equals(cell.syncDelayedTo));
+      expect(copiedCell.deleted, equals(cell.deleted));
+      expect(copiedCell.element.value, equals(cell.element.value));
+      expect(copiedCell.oldElement, equals(cell.oldElement));
+      expect(copiedCell.maxSyncAttemptsReached,
+          equals(cell.maxSyncAttemptsReached));
+      expect(copiedCell.needsNetworkSync, equals(cell.needsNetworkSync));
+      expect(copiedCell.networkSyncAttemptsCount,
+          equals(cell.networkSyncAttemptsCount));
+      expect(copiedCell.wasSynced, equals(cell.wasSynced));
+      expect(copiedCell.actionNeeded, equals(cell.actionNeeded));
+    });
+
+    group("Delay works correctly", () {
+      test("with default delay function", () async {
+        final cell = StorageCell(element: TestElement(1));
+        expect(cell.isDelayed, isFalse);
+        expect(cell.syncDelayedTo, isNull);
+        expect(cell.needsNetworkSync, isTrue);
+        expect(cell.isReadyForSync, isTrue);
+
+        cell.registerSyncAttempt();
+
+        expect(cell.isDelayed, isTrue);
+        expect(cell.syncDelayedTo, isNotNull);
+        expect(cell.needsNetworkSync, isTrue);
+        expect(cell.isReadyForSync, isFalse);
+
+        await Future.delayed(Duration(milliseconds: 1200));
+
+        expect(cell.isDelayed, isFalse);
+        expect(cell.syncDelayedTo, isNotNull);
+        expect(cell.needsNetworkSync, isTrue);
+        expect(cell.isReadyForSync, isTrue);
+      });
+
+      test("cannot delay already delayed cell", () async {
+        final cell = StorageCell(element: TestElement(1));
+        cell.registerSyncAttempt();
+        expect(cell.registerSyncAttempt, throwsA(isA<StateError>()));
+      });
+
+      test("with custom delay function", () async {
+        final cell = StorageCell(element: TestElement(1));
+        expect(cell.syncDelayedTo, isNull);
+
+        while (
+            cell.networkSyncAttemptsCount < cell.maxNetworkSyncAttempts - 1) {
+          expect(cell.isDelayed, isFalse);
+          expect(cell.needsNetworkSync, isTrue);
+          expect(cell.isReadyForSync, isTrue);
+
+          cell.registerSyncAttempt(
+            getDelayBeforeNextAttempt: (_) => const Duration(milliseconds: 100),
+          );
+
+          expect(cell.isDelayed, isTrue);
+          expect(cell.syncDelayedTo, isNotNull);
+          expect(cell.needsNetworkSync, isTrue);
+          expect(cell.isReadyForSync, isFalse);
+          expect(cell.actionNeeded, SyncAction.create);
+
+          await Future.delayed(Duration(milliseconds: 150));
+        }
+
+        cell.registerSyncAttempt(
+          getDelayBeforeNextAttempt: (_) => const Duration(milliseconds: 100),
+        );
+
+        expect(cell.maxSyncAttemptsReached, isTrue);
+        expect(cell.isDelayed, isTrue);
+        expect(cell.syncDelayedTo, isNotNull);
+        expect(cell.needsNetworkSync, isTrue);
+        expect(cell.isReadyForSync, isFalse);
+        expect(cell.actionNeeded, SyncAction.create);
+      });
+    });
+
     test("Serialization works correctly", () async {
       final cell = StorageCell.synced(element: TestElement(1));
 
@@ -53,6 +141,8 @@ void main() {
       expect(jsonDecodedCell.deleted, equals(cell.deleted));
       expect(jsonDecodedCell.element.value, equals(cell.element.value));
       expect(jsonDecodedCell.oldElement, equals(cell.oldElement));
+      expect(jsonDecodedCell.isReadyForSync, equals(cell.isReadyForSync));
+      expect(jsonDecodedCell.isDelayed, equals(cell.isDelayed));
       expect(jsonDecodedCell.maxSyncAttemptsReached,
           equals(cell.maxSyncAttemptsReached));
       expect(jsonDecodedCell.needsNetworkSync, equals(cell.needsNetworkSync));

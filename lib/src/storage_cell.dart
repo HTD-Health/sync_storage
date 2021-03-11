@@ -15,7 +15,8 @@ class StorageCell<T> {
 
   /// After 5 failed network sync attempts [StorageCell]
   /// should be removed from storage.
-  static const maxNetworkSyncAttempts = 5;
+  int get maxNetworkSyncAttempts => _defaultMaxNetworkSyncAttempts;
+  static const _defaultMaxNetworkSyncAttempts = 5;
 
   DateTime _syncDelayedTo;
   DateTime get syncDelayedTo => _syncDelayedTo;
@@ -28,6 +29,12 @@ class StorageCell<T> {
   DateTime _lastSync;
   bool _deleted;
   bool get deleted => _deleted;
+  T _oldElement;
+  T get oldElement => _oldElement;
+
+  /// Current element stored in the cell.
+  T get element => _element;
+  T _element;
 
   /// The number of times that network synchronization was retried.
   int get networkSyncAttemptsCount => _networkSyncAttemptsCount;
@@ -36,10 +43,10 @@ class StorageCell<T> {
   static Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
     if (attemptNumber < 5) {
       return const [
-        Duration(seconds: 10),
+        Duration(seconds: 1),
+        Duration(minutes: 30),
         Duration(minutes: 1),
         Duration(minutes: 5),
-        Duration(minutes: 10),
         Duration(hours: 1),
       ][attemptNumber];
     } else {
@@ -49,8 +56,12 @@ class StorageCell<T> {
 
   /// Register failed network synchronization.
   ///
-  /// Cell will be deleted when retry count
+  /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is already reached.
   void registerSyncAttempt({DelayDurationGetter getDelayBeforeNextAttempt}) {
+    if (isDelayed) {
+      throw StateError("Cannot register sync attempt for delayed cell.");
+    }
+
     final getDelay =
         getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt;
     final attempt = _networkSyncAttemptsCount++;
@@ -68,10 +79,6 @@ class StorageCell<T> {
   bool get maxSyncAttemptsReached =>
       networkSyncAttemptsCount >= maxNetworkSyncAttempts;
 
-  T _oldElement;
-  T get oldElement => _oldElement;
-  T _element;
-  T get element => _element;
   void updateElement(T newElement) {
     if (deleted) {
       throw StateError('Cannot update element which is marked as deleted.');
