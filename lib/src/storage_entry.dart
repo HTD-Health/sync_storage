@@ -56,12 +56,8 @@ class StorageEntry<T> {
 
   /// return [StorageCell]s that are saved only in the local storage.
   List<StorageCell<T>> get cellsToSync => List.unmodifiable(_cellsToSync);
-  List<StorageCell<T>> get cellsReadyToSync =>
-      _cellsToSync.where((cell) => cell.isReadyForSync).toList();
-
-  Iterable<T> get elementsToSync sync* {
-    for (final cell in cellsToSync) yield cell.element;
-  }
+  List<StorageCell<T>> get cellsReadyToSync => List.unmodifiable(
+      _cellsToSync.where((cell) => cell.isReadyForSync).toList());
 
   StorageEntry({
     @required this.name,
