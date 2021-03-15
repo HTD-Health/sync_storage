@@ -2,7 +2,15 @@ library sync_storage;
 
 export 'src/sync_storage.dart' show SyncStorage;
 export 'src/storage/storage_config.dart' show StorageConfig;
-export 'src/storage_entry.dart' show StorageEntry, StorageCell;
+export 'src/storage_entry.dart'
+    show
+        StorageEntry,
+        StorageCell,
+        SyncException,
+        DelayDurationGetter,
+        OnCellMaxAttemptReached,
+        OnCellSyncError,
+        SyncAction;
 export 'src/storage/storage.dart' show Storage;
 export 'src/storage/hive_storage.dart' show HiveStorage, HiveStorageController;
 export 'src/callbacks/storage_network_callbacks.dart'
