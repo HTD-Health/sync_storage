@@ -93,7 +93,7 @@ void main() {
       for (final entry in entries) {
         final hasElementsToSync = entry.cellsToSync.isNotEmpty;
 
-        print("level ${entry.level}:  hasElementsToSync=$hasElementsToSync");
+        // print("level ${entry.level}:  hasElementsToSync=$hasElementsToSync");
 
         if (entry.level == 2 && hasElementsToSync) {
           level2ElementsToSyncCount++;
@@ -131,7 +131,7 @@ void main() {
       int notFetchedLevel2Count = 0;
       for (final entry in entries) {
         final cells = await entry.storage.readAllCells();
-        print("level ${entry.level}:  cellsCount=${cells.length}");
+        // print("level ${entry.level}:  cellsCount=${cells.length}");
 
         if (entry.level == 2 && cells.isEmpty) {
           notFetchedLevel2Count++;
@@ -156,7 +156,7 @@ void main() {
 
       for (final entry in entries) {
         final cells = await entry.storage.readAllCells();
-        print("level ${entry.level}:  cellsCount=${cells.length}");
+        // print("level ${entry.level}:  cellsCount=${cells.length}");
 
         expect(cells, hasLength(4));
       }

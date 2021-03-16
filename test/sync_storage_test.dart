@@ -63,6 +63,8 @@ void main() {
 
       await networkAvailabilityService.goOnline();
 
+      await syncStorage.syncEntriesWithNetwork();
+
       await entry.setElements([
         for (int i = 0; i < 5; i++) TestElement(i),
       ]);
@@ -458,8 +460,8 @@ void main() {
       });
 
       test(
-          'Successfully calls fetch method with entry '
-          'registration when network is available.', () async {
+          'Do not call fetch method with entry '
+          'fetch entry only after user call.', () async {
         await networkAvailabilityService.goOnline();
 
         verifyNever(networkCallbacks.onFetch()).called(0);
@@ -471,8 +473,13 @@ void main() {
           networkCallbacks: networkCallbacks,
         );
 
+        verifyNever(networkCallbacks.onFetch()).called(0);
+        var cells = await storage.readAllCells();
+        expect(cells, isEmpty);
+
+        await syncStorage.syncEntriesWithNetwork();
         verify(networkCallbacks.onFetch()).called(1);
-        final cells = await storage.readAllCells();
+        cells = await storage.readAllCells();
 
         expect(
           cells.map((e) => e.element.value).toList(),
@@ -497,6 +504,10 @@ void main() {
           storage: storage,
           networkCallbacks: networkCallbacks,
         );
+
+        verifyNever(networkCallbacks.onFetch()).called(0);
+
+        await syncStorage.syncEntriesWithNetwork();
 
         /// check whether entry is synced correctly
         verify(networkCallbacks.onFetch()).called(1);
