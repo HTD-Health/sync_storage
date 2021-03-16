@@ -18,8 +18,8 @@ void debugModePrint(String log, {bool enabled = true}) {
 }
 
 class SyncStorage {
-  final List<StorageEntry<dynamic>> _entries = [];
-  List<StorageEntry<dynamic>> get entries => _entries;
+  final List<StorageEntry<dynamic, Storage>> _entries = [];
+  List<StorageEntry<dynamic, Storage>> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
   StreamSubscription<bool> _networkAvailabilitySubscription;
@@ -36,7 +36,7 @@ class SyncStorage {
   /// Check if [SyncStorage] contains not synced [StorageEntry].
   bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
 
-  List<StorageEntry<dynamic>> get entriesToSync =>
+  List<StorageEntry<dynamic, Storage>> get entriesToSync =>
       _entries.where((entry) => entry.needsNetworkSync).toList();
 
   final bool debug;
@@ -67,27 +67,54 @@ class SyncStorage {
   Future<void> initialize() => Hive.initFlutter();
 
   Future<void> _syncEntriesWithNetwork() async {
-    for (final entry in entriesToSync) {
+    sortEntriesByLevelAscending(StorageEntry a, StorageEntry b) =>
+        a.level.compareTo(b.level);
+
+    final sortedEntriesToSync = entriesToSync
+      ..sort(sortEntriesByLevelAscending);
+
+    int errorLevel;
+    try {
+      for (final entry in sortedEntriesToSync) {
+        if (errorLevel != null && entry.level > errorLevel) {
+          throw SyncException();
+        }
+        try {
+          debugModePrint(
+            '[SyncStorage]: Syncing entry with name: "${entry.name}".',
+            enabled: debug,
+          );
+
+          /// Skip this [StorageEntry], if it is syncing on its own,
+          /// or changes have been reverted.
+          if (!entry.needsNetworkSync) continue;
+
+          /// Stop sync task when network is no longer available.
+          if (!networkAvailable) return;
+
+          /// sync all cells with network.
+          await entry.syncElementsWithNetwork();
+
+        } on Exception catch (err, stackTrace) {
+          debugModePrint(
+            '[$runtimeType]: Exception caught during entry (${entry.name}) sync: $err, $stackTrace',
+            enabled: debug,
+          );
+          errorLevel = entry.level;
+        }
+      }
+
+      /// If during sync network sync, new data were added.
+      /// Sync it too.
+      if (needsNetworkSync) {
+        await _syncEntriesWithNetwork();
+      }
+    } on SyncException {
       debugModePrint(
-        '[SyncStorage]: Syncing entry with name: "${entry.name}".',
+        '[$runtimeType]: Breaking sync on level: $errorLevel',
         enabled: debug,
       );
-
-      /// Skip this [StorageEntry], if it is syncing on its own,
-      /// or changes have been reverted.
-      if (!entry.needsNetworkSync || entry.isSyncing) continue;
-
-      /// Stop sync task when network is no longer available.
-      if (!networkAvailable) return;
-
-      /// sync all cells with network.
-      await entry.syncElementsWithNetwork();
-    }
-
-    /// If during sync network sync, new data were added.
-    /// Sync it too.
-    if (needsNetworkSync) {
-      await _syncEntriesWithNetwork();
+      // rethrow;
     }
   }
 
@@ -114,10 +141,11 @@ class SyncStorage {
     _networkSyncTask.complete();
   }
 
-  Future<StorageEntry<T>> registerEntry<T>({
+  Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
     @required String name,
     @required Storage<T> storage,
     @required StorageNetworkCallbacks<T> networkCallbacks,
+    int level = 0,
     OnCellSyncError<T> onCellSyncError,
     ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
     DelayDurationGetter getDelayBeforeNextAttempt,
@@ -136,9 +164,10 @@ class SyncStorage {
       );
     }
 
-    final entry = StorageEntry<T>(
+    final entry = StorageEntry<T, S>(
       debug: debug,
       name: name,
+      level: level,
       storage: storage,
       networkCallbacks: networkCallbacks,
       networkUpdateCallback: syncEntriesWithNetwork,
@@ -156,7 +185,7 @@ class SyncStorage {
       enabled: debug,
     );
 
-    await syncEntriesWithNetwork();
+    // await syncEntriesWithNetwork();
 
     return entry;
   }
@@ -172,8 +201,9 @@ class SyncStorage {
   StorageEntry getEntryWithName(String name) =>
       _entries.firstWhere((entry) => entry.name == name, orElse: () => null);
 
-  StorageEntry<T> getRegisteredEntry<T>(String name) => _entries.firstWhere(
-        (entry) => entry is StorageEntry<T> && entry.name == name,
+  StorageEntry<T, S> getRegisteredEntry<T, S extends Storage<T>>(String name) =>
+      _entries.firstWhere(
+        (entry) => entry is StorageEntry<T, S> && entry.name == name,
         orElse: () => null,
       );
 

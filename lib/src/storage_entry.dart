@@ -12,18 +12,39 @@ import 'sync_storage.dart';
 
 part 'storage_cell.dart';
 
-typedef OnCellSyncError<T> = void Function(
+class SyncException implements Exception {}
+
+typedef OnCellSyncError<T> = bool Function(
   StorageCell<T> cell,
   Exception exception,
   StackTrace stackTrace,
 );
 
-class StorageEntry<T> {
+typedef OnCellMaxAttemptReached<T> = bool Function(
+  StorageCell<T> cell,
+);
+
+class StorageEntry<T, S extends Storage<T>> {
   final String name;
-  final Storage<T> storage;
+
+  /// Indicates entry sync priority. Entries with lower level will be
+  /// fetched / synced first.
+  ///
+  /// Long story short:
+  /// If entries with level `0` are not synced. Entries with greater levels
+  /// (`1`, `2`, `3` and so on) will not be synced too.
+  ///
+  /// It could be helpful for maintaining database relations.
+  /// For example elements with level `1` are nested in elements with level
+  /// `0`. So it is not possible to store level `1` element when its' parent (element with
+  /// level `0`) does not exixt (is not fetched).
+  ///
+  /// By default, all entries have level set to `0`.
+  final int level;
+  final S storage;
   final StorageNetworkCallbacks<T> networkCallbacks;
   final OnCellSyncError<T> onCellSyncError;
-  final ValueChanged<StorageCell<T>> onCellMaxAttemptsReached;
+  final OnCellMaxAttemptReached<T> onCellMaxAttemptsReached;
   final bool debug;
   final DelayDurationGetter getDelayBeforeNextAttempt;
 
@@ -61,6 +82,7 @@ class StorageEntry<T> {
 
   StorageEntry({
     @required this.name,
+    this.level = 0,
     @required this.storage,
     @required this.networkCallbacks,
     @required this.networkUpdateCallback,
@@ -117,25 +139,26 @@ class StorageEntry<T> {
     if (isSyncing) return _networkSyncTask.future;
     _networkSyncTask = Completer<void>();
 
-    if (needsElementsSync) {
-      debugModePrint(
-        '[$runtimeType]: Syncing elements with network...',
-        enabled: debug,
-      );
-      await _syncElementsWithNetwork();
-      debugModePrint(
-        '[$runtimeType]: Elements sync completed.',
-        enabled: debug,
-      );
-    }
-
     try {
+      if (needsElementsSync) {
+        debugModePrint(
+          '[$runtimeType]: Syncing elements with network...',
+          enabled: debug,
+        );
+        await _syncElementsWithNetwork();
+        debugModePrint(
+          '[$runtimeType]: Elements sync completed.',
+          enabled: debug,
+        );
+      }
+
       if (needsFetch && !needsElementsSync) {
         debugModePrint(
           '[$runtimeType]: Fetching elements from the network...',
           enabled: debug,
         );
         final cells = await _fetchAllElementsFromNetwork();
+        _needsFetch = false;
         debugModePrint(
           '[$runtimeType]: Elements fetched: count=${cells?.length}.',
           enabled: debug,
@@ -159,14 +182,14 @@ class StorageEntry<T> {
     } on Exception catch (err, stackTrace) {
       debugModePrint(
         '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err $stackTrace',
-        enabled: true,
+        enabled: debug,
       );
+      rethrow;
     } finally {
       /// disable entry fetch for current session
-      _needsFetch = false;
+      // _needsFetch = false;
+      _networkSyncTask.complete();
     }
-
-    _networkSyncTask.complete();
   }
 
   Future<void> refetch() async {
@@ -179,6 +202,8 @@ class StorageEntry<T> {
   }
 
   Future<void> _syncElementsWithNetwork() async {
+    bool hasError = false;
+
     for (final cell in cellsReadyToSync) {
       /// end task when network is not available
       if (!networkAvailable) break;
@@ -246,7 +271,7 @@ class StorageEntry<T> {
         cell.markAsSynced();
 
         // synced cell should be removed from cells to sync.
-        _cellsToSync.removeWhere((c) => c.id == cell.id);
+        _removeCellFromCellsToSync(cell);
 
         if (cell.deleted) {
           // deleted celll should be removed from the storage
@@ -265,13 +290,22 @@ class StorageEntry<T> {
         cell.registerSyncAttempt(
           getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
         );
-        await storage.writeCell(cell);
-        onCellSyncError?.call(cell, err, stackTrace);
+
+        final bool delete =
+            onCellSyncError?.call(cell, err, stackTrace) ?? false;
+        if (delete) {
+          await _removeCell(cell);
+        } else {
+          await storage.writeCell(cell);
+        }
+
+        hasError = true;
       } finally {
         if (cell.maxSyncAttemptsReached) {
-          _cellsToSync.removeWhere((c) => c.id == cell.id);
-          await storage.deleteCell(cell);
-          onCellMaxAttemptsReached?.call(cell);
+          final bool delete = onCellMaxAttemptsReached?.call(cell) ?? true;
+          if (delete) {
+            await _removeCell(cell);
+          }
         }
       }
     }
@@ -280,6 +314,19 @@ class StorageEntry<T> {
     if (needsElementsSync && networkAvailable) {
       await _syncElementsWithNetwork();
     }
+
+    if (hasError) throw SyncException();
+  }
+
+  void _removeCellFromCellsToSync(StorageCell<T> cell) {
+    _cellsToSync.removeWhere((c) => c.id == cell.id);
+  }
+
+  /// Remove cell from local storage.
+  /// Cell is not deleted from the network.
+  Future<void> _removeCell(StorageCell<T> cell) async {
+    _removeCellFromCellsToSync(cell);
+    await storage.deleteCell(cell);
   }
 
   /// Utility functions
