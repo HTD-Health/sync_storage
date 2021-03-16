@@ -24,7 +24,7 @@ typedef OnCellMaxAttemptReached<T> = bool Function(
   StorageCell<T> cell,
 );
 
-class StorageEntry<T, S extends Storage<T>> {
+class StorageEntry<T> {
   final String name;
 
   /// Indicates entry sync priority. Entries with lower level will be
@@ -41,7 +41,7 @@ class StorageEntry<T, S extends Storage<T>> {
   ///
   /// By default, all entries have level set to `0`.
   final int level;
-  final S storage;
+  final Storage<T> storage;
   final StorageNetworkCallbacks<T> networkCallbacks;
   final OnCellSyncError<T> onCellSyncError;
   final OnCellMaxAttemptReached<T> onCellMaxAttemptsReached;

@@ -18,8 +18,8 @@ void debugModePrint(String log, {bool enabled = true}) {
 }
 
 class SyncStorage {
-  final List<StorageEntry<dynamic, Storage>> _entries = [];
-  List<StorageEntry<dynamic, Storage>> get entries => _entries;
+  final List<StorageEntry<dynamic>> _entries = [];
+  List<StorageEntry<dynamic>> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
   StreamSubscription<bool> _networkAvailabilitySubscription;
@@ -36,7 +36,7 @@ class SyncStorage {
   /// Check if [SyncStorage] contains not synced [StorageEntry].
   bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
 
-  List<StorageEntry<dynamic, Storage>> get entriesToSync =>
+  List<StorageEntry<dynamic>> get entriesToSync =>
       _entries.where((entry) => entry.needsNetworkSync).toList();
 
   final bool debug;
@@ -94,7 +94,6 @@ class SyncStorage {
 
           /// sync all cells with network.
           await entry.syncElementsWithNetwork();
-
         } on Exception catch (err, stackTrace) {
           debugModePrint(
             '[$runtimeType]: Exception caught during entry (${entry.name}) sync: $err, $stackTrace',
@@ -141,7 +140,7 @@ class SyncStorage {
     _networkSyncTask.complete();
   }
 
-  Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
+  Future<StorageEntry<T>> registerEntry<T>({
     @required String name,
     @required Storage<T> storage,
     @required StorageNetworkCallbacks<T> networkCallbacks,
@@ -164,7 +163,7 @@ class SyncStorage {
       );
     }
 
-    final entry = StorageEntry<T, S>(
+    final entry = StorageEntry<T>(
       debug: debug,
       name: name,
       level: level,
@@ -201,9 +200,8 @@ class SyncStorage {
   StorageEntry getEntryWithName(String name) =>
       _entries.firstWhere((entry) => entry.name == name, orElse: () => null);
 
-  StorageEntry<T, S> getRegisteredEntry<T, S extends Storage<T>>(String name) =>
-      _entries.firstWhere(
-        (entry) => entry is StorageEntry<T, S> && entry.name == name,
+  StorageEntry<T> getRegisteredEntry<T>(String name) => _entries.firstWhere(
+        (entry) => entry is StorageEntry<T> && entry.name == name,
         orElse: () => null,
       );
 
