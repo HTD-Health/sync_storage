@@ -294,7 +294,7 @@ class StorageEntry<T> {
         final bool delete =
             onCellSyncError?.call(cell, err, stackTrace) ?? false;
         if (delete) {
-          await _removeCell(cell);
+          await removeCell(cell);
         } else {
           await storage.writeCell(cell);
         }
@@ -304,7 +304,7 @@ class StorageEntry<T> {
         if (cell.maxSyncAttemptsReached) {
           final bool delete = onCellMaxAttemptsReached?.call(cell) ?? true;
           if (delete) {
-            await _removeCell(cell);
+            await removeCell(cell);
           }
         }
       }
@@ -324,7 +324,7 @@ class StorageEntry<T> {
 
   /// Remove cell from local storage.
   /// Cell is not deleted from the network.
-  Future<void> _removeCell(StorageCell<T> cell) async {
+  Future<void> removeCell(StorageCell<T> cell) async {
     _removeCellFromCellsToSync(cell);
     await storage.deleteCell(cell);
   }
@@ -446,8 +446,7 @@ class StorageEntry<T> {
       /// Cell will be removed from storage after successfull delete callback.
       await updateCell(cell);
     } else {
-      _cellsToSync.removeWhere((cell) => cell.id == cell.id);
-      await storage.deleteCell(cell);
+      await removeCell(cell);
     }
   }
 

@@ -52,8 +52,7 @@ void main() {
       );
       storage = HiveStorageMock(boxName, const TestElementSerializer());
 
-      entry = await syncStorage
-          .registerEntry<TestElement>(
+      entry = await syncStorage.registerEntry<TestElement>(
         name: 'test_elements',
         storage: storage,
         networkCallbacks: networkCallbacks,
@@ -348,14 +347,12 @@ void main() {
           const TestElementSerializer(),
         );
 
-        entry1 = await syncStorage
-            .registerEntry<TestElement>(
+        entry1 = await syncStorage.registerEntry<TestElement>(
           name: 'box1',
           storage: storage1,
           networkCallbacks: networkCallbacks,
         );
-        entry2 = await syncStorage
-            .registerEntry<TestElement>(
+        entry2 = await syncStorage.registerEntry<TestElement>(
           name: 'box2',
           storage: storage2,
           networkCallbacks: networkCallbacks,
@@ -375,7 +372,7 @@ void main() {
       });
 
       test('Succesfully moves cells between entries', () async {
-        await networkAvailabilityService.goOffline();
+        await networkAvailabilityService.goOnline();
 
         var cells1 = await storage1.readAllCells();
         var cells2 = await storage2.readAllCells();
@@ -387,16 +384,17 @@ void main() {
 
         final newElement = const TestElement(999);
         final cell = await entry1.createElement(newElement);
+        verify(networkCallbacks.onCreate(newElement)).called(1);
 
         cells1 = await storage1.readAllCells();
         cells2 = await storage2.readAllCells();
 
-        expect(entry1.needsElementsSync, isTrue);
+        expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
         expect(cells1, hasLength(1));
         expect(cells2, hasLength(0));
 
-        await entry1.deleteCell(cell);
+        await entry1.removeCell(cell);
 
         cells1 = await storage1.readAllCells();
         cells2 = await storage2.readAllCells();
@@ -413,15 +411,12 @@ void main() {
         cells2 = await storage2.readAllCells();
 
         expect(entry1.needsElementsSync, isFalse);
-        expect(entry2.needsElementsSync, isTrue);
+        expect(entry2.needsElementsSync, isFalse);
         expect(cells1, hasLength(0));
         expect(cells2, hasLength(1));
 
+        verifyNever(networkCallbacks.onDelete(newElement)).called(0);
         verifyNever(networkCallbacks.onCreate(newElement)).called(0);
-
-        await networkAvailabilityService.goOnline();
-
-        verify(networkCallbacks.onCreate(newElement)).called(1);
       });
     });
     group('onFetch callback works correctly', () {
@@ -466,8 +461,7 @@ void main() {
 
         verifyNever(networkCallbacks.onFetch()).called(0);
         final storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement>(
+        entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
           storage: storage,
           networkCallbacks: networkCallbacks,
@@ -498,8 +492,7 @@ void main() {
         /// Create entry
         /// Entry will be automatically synced with the network
         var storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement>(
+        entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
           storage: storage,
           networkCallbacks: networkCallbacks,
@@ -529,8 +522,7 @@ void main() {
 
         /// Recreate entry
         storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement>(
+        entry = await syncStorage.registerEntry<TestElement>(
           name: boxName,
           storage: storage,
           networkCallbacks: networkCallbacks,
@@ -554,8 +546,7 @@ void main() {
         );
 
         /// Create entry
-        entry = await syncStorage
-            .registerEntry<TestElement>(
+        entry = await syncStorage.registerEntry<TestElement>(
           name: 'onFetch_offline_test',
           storage: storage,
           networkCallbacks: networkCallbacks,
