@@ -42,6 +42,7 @@ void main() {
       final cell = StorageCell(element: TestElement(1));
       final copiedCell = cell.copy();
 
+      expect(cell.runtimeType, equals(copiedCell.runtimeType));
       expect(copiedCell.id, equals(cell.id));
       expect(copiedCell.isReadyForSync, equals(cell.isReadyForSync));
       expect(copiedCell.isDelayed, equals(cell.isDelayed));

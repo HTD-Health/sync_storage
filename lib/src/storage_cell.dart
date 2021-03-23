@@ -192,8 +192,8 @@ class StorageCell<T> {
     }
   }
 
-  StorageCell copy() {
-    return StorageCell(
+  StorageCell<T> copy() {
+    return StorageCell<T>(
       id: id,
       createdAt: createdAt,
       updatedAt: updatedAt,
