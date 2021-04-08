@@ -376,9 +376,9 @@ class StorageEntry<T> {
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
 
+    _fetchIndicator.reset(needSync: false);
     _cellsToSync.clear();
     await storage.clear();
-    _fetchIndicator.reset();
 
     debugModePrint(
       '[$runtimeType]: Entry cleared.',

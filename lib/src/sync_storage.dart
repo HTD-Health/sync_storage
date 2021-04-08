@@ -46,8 +46,11 @@ class SyncStorage {
     }
   }
 
-  List<StorageEntry<dynamic>> get entriesToSync =>
-      _entries.where((entry) => entry.needsNetworkSync).toList();
+  List<StorageEntry<dynamic>> get entriesToSync => _entries
+      // entries with fetch delayed needs to be added for
+      // level functionality.
+      .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
+      .toList();
 
   final bool debug;
 
@@ -114,14 +117,17 @@ class SyncStorage {
             '[$runtimeType]: Exception caught during entry (${entry.name}) sync: $err, $stackTrace',
             enabled: debug,
           );
-          errorLevel = entry.level;
+          if (errorLevel != null && entry.level > errorLevel) {
+            throw SyncException();
+          } else {
+            errorLevel = entry.level;
+          }
         }
       }
 
       /// If during sync network sync, new data were added.
       /// Sync it too.
       if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
-        print("AFTER");
         await _syncEntriesWithNetwork();
       }
     } on SyncException {

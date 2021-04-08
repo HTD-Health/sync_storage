@@ -169,7 +169,7 @@ void main() {
 
       for (final entry in entries) {
         final cells = await entry.storage.readAllCells();
-        print("level ${entry.level}:  cellsCount=${cells.length}");
+        // print("level ${entry.level}:  cellsCount=${cells.length}");
 
         expect(cells, hasLength(4));
       }
