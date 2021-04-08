@@ -8,6 +8,7 @@ import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/serializer.dart';
 
+import 'helpers/sync_indicator.dart';
 import 'sync_storage.dart';
 
 part 'storage_cell.dart';
@@ -68,18 +69,12 @@ class StorageEntry<T> {
 
   Completer<void> _networkSyncTask;
 
-  int _fetchAttempt = -1;
-  int get  fetchAttempt => _fetchAttempt;
-  DateTime _nextFetchDelayedTo = DateTime.now();
-  DateTime get nextFetchDelayedTo => _nextFetchDelayedTo;
-
-  bool _needsFetch = false;
-  bool get needsFetch => _needsFetch;
-  bool get canFetch =>
-      needsFetch &&
-      (_nextFetchDelayedTo.isAtSameMomentAs(DateTime.now()) ||
-          _nextFetchDelayedTo.isBefore(DateTime.now()));
-  bool get isFetchDelayed => _fetchAttempt >= 0;
+  final SyncIndicator _fetchIndicator;
+  DateTime get nextFetchDelayedTo => _fetchIndicator.delayedTo;
+  int get fetchAttempt => _fetchIndicator.attempt;
+  bool get needsFetch => _fetchIndicator.needSync;
+  bool get canFetch => _fetchIndicator.canSync;
+  bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
 
   bool get needsElementsSync =>
       _cellsToSync.isNotEmpty &&
@@ -127,7 +122,12 @@ class StorageEntry<T> {
     DelayDurationGetter getDelayBeforeNextAttempt,
   })  : getDelayBeforeNextAttempt =
             getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
-        level = level ?? 0;
+        level = level ?? 0,
+        _fetchIndicator = SyncIndicator(
+          getDelay:
+              getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
+          needSync: false,
+        );
 
   Future<List<StorageCell<T>>> _fetchAllElementsFromNetwork() async {
     final data = await networkCallbacks.onFetch();
@@ -146,7 +146,7 @@ class StorageEntry<T> {
   Future<void> initialize() async {
     await storage.initialize();
 
-    _needsFetch = storage.config.needsFetch;
+    _fetchIndicator.reset(needSync: storage.config.needsFetch);
     _cellsToSync = (await storage.readNotSyncedCells()).toList();
   }
 
@@ -183,8 +183,7 @@ class StorageEntry<T> {
           enabled: debug,
         );
         final cells = await _fetchAllElementsFromNetwork();
-        _needsFetch = false;
-        _fetchAttempt = -1;
+        _fetchIndicator.reset(needSync: false);
         debugModePrint(
           '[$runtimeType]: Elements fetched: count=${cells?.length}.',
           enabled: debug,
@@ -211,11 +210,10 @@ class StorageEntry<T> {
         enabled: debug,
       );
 
-      if (needsFetch) {
+      if (_fetchIndicator.needSync) {
         /// disable entry fetch for current session.
         /// Prevent infinit fetch actions when fetch action throws an exception.
-        final fetchDelayDuration = getDelayBeforeNextAttempt(++_fetchAttempt);
-        _nextFetchDelayedTo = DateTime.now().add(fetchDelayDuration);
+        final fetchDelayDuration = _fetchIndicator.delay();
         debugModePrint(
           '[$runtimeType]: Delaying fetch by: ${fetchDelayDuration.inMilliseconds}ms',
           enabled: debug,
@@ -232,8 +230,7 @@ class StorageEntry<T> {
       '[$runtimeType]: Marked the entry as refetch is needed.',
       enabled: debug,
     );
-    _needsFetch = true;
-    _nextFetchDelayedTo = DateTime.now();
+    _fetchIndicator.reset(needSync: true);
     await requestNetworkSync();
   }
 
@@ -381,8 +378,7 @@ class StorageEntry<T> {
 
     _cellsToSync.clear();
     await storage.clear();
-    _nextFetchDelayedTo = DateTime.now();
-    _fetchAttempt = -1;
+    _fetchIndicator.reset();
 
     debugModePrint(
       '[$runtimeType]: Entry cleared.',

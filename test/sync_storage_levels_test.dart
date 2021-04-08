@@ -40,6 +40,7 @@ void main() {
         final entry = await syncStorage.registerEntry<TestElement>(
           name: 'sync_storage_levels_box$i',
           level: level,
+          getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
           storage: storage,
           networkCallbacks: callbacks,
         );
