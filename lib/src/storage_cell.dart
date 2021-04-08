@@ -40,32 +40,18 @@ class StorageCell<T> {
   int get networkSyncAttemptsCount => _networkSyncAttemptsCount;
   int _networkSyncAttemptsCount;
 
-  static Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
-    if (attemptNumber < 5) {
-      return const [
-        Duration(seconds: 1),
-        Duration(minutes: 30),
-        Duration(minutes: 1),
-        Duration(minutes: 5),
-        Duration(hours: 1),
-      ][attemptNumber];
-    } else {
-      return Duration(days: 1);
-    }
-  }
-
   /// Register failed network synchronization.
   ///
   /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is already reached.
-  void registerSyncAttempt({DelayDurationGetter getDelayBeforeNextAttempt}) {
+  void registerSyncAttempt({
+    @required DelayDurationGetter getDelayBeforeNextAttempt,
+  }) {
     if (isDelayed) {
       throw StateError("Cannot register sync attempt for delayed cell.");
     }
 
-    final getDelay =
-        getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt;
     final attempt = _networkSyncAttemptsCount++;
-    final delay = getDelay(attempt);
+    final delay = getDelayBeforeNextAttempt(attempt);
 
     _syncDelayedTo = DateTime.now().add(delay);
   }

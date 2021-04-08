@@ -24,6 +24,20 @@ typedef OnCellMaxAttemptReached<T> = bool Function(
   StorageCell<T> cell,
 );
 
+Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
+  if (attemptNumber < 5) {
+    return const [
+      Duration(seconds: 1),
+      Duration(minutes: 30),
+      Duration(minutes: 1),
+      Duration(minutes: 5),
+      Duration(hours: 1),
+    ][attemptNumber];
+  } else {
+    return Duration(days: 1);
+  }
+}
+
 class StorageEntry<T> {
   final String name;
 
@@ -47,7 +61,6 @@ class StorageEntry<T> {
   final OnCellMaxAttemptReached<T> onCellMaxAttemptsReached;
   final bool debug;
   final DelayDurationGetter getDelayBeforeNextAttempt;
-
   final Future<void> Function() networkUpdateCallback;
 
   bool get networkAvailable => networkNotifier.value;
@@ -55,8 +68,18 @@ class StorageEntry<T> {
 
   Completer<void> _networkSyncTask;
 
+  int _fetchAttempt = -1;
+  int get  fetchAttempt => _fetchAttempt;
+  DateTime _nextFetchDelayedTo = DateTime.now();
+  DateTime get nextFetchDelayedTo => _nextFetchDelayedTo;
+
   bool _needsFetch = false;
   bool get needsFetch => _needsFetch;
+  bool get canFetch =>
+      needsFetch &&
+      (_nextFetchDelayedTo.isAtSameMomentAs(DateTime.now()) ||
+          _nextFetchDelayedTo.isBefore(DateTime.now()));
+  bool get isFetchDelayed => _fetchAttempt >= 0;
 
   bool get needsElementsSync =>
       _cellsToSync.isNotEmpty &&
@@ -66,7 +89,7 @@ class StorageEntry<T> {
       _cellsToSync.any((cell) => cell.isReadyForSync);
 
   /// Check if [StorageEntry] contains not synced [StorageCell].
-  bool get needsNetworkSync => needsFetch || needsElementsSync;
+  bool get needsNetworkSync => canFetch || needsElementsSync;
 
   /// Whether [StorageEntry] is syncing elements with network.
 
@@ -82,7 +105,7 @@ class StorageEntry<T> {
 
   StorageEntry({
     @required this.name,
-    this.level = 0,
+    int level,
     @required this.storage,
     @required this.networkCallbacks,
     @required this.networkUpdateCallback,
@@ -101,8 +124,10 @@ class StorageEntry<T> {
 
     /// Returns duration that will be used to delayed
     /// next sync attempt for cell.
-    this.getDelayBeforeNextAttempt,
-  });
+    DelayDurationGetter getDelayBeforeNextAttempt,
+  })  : getDelayBeforeNextAttempt =
+            getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
+        level = level ?? 0;
 
   Future<List<StorageCell<T>>> _fetchAllElementsFromNetwork() async {
     final data = await networkCallbacks.onFetch();
@@ -152,13 +177,14 @@ class StorageEntry<T> {
         );
       }
 
-      if (needsFetch && !needsElementsSync) {
+      if (canFetch && !needsElementsSync) {
         debugModePrint(
           '[$runtimeType]: Fetching elements from the network...',
           enabled: debug,
         );
         final cells = await _fetchAllElementsFromNetwork();
         _needsFetch = false;
+        _fetchAttempt = -1;
         debugModePrint(
           '[$runtimeType]: Elements fetched: count=${cells?.length}.',
           enabled: debug,
@@ -184,10 +210,19 @@ class StorageEntry<T> {
         '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err $stackTrace',
         enabled: debug,
       );
+
+      if (needsFetch) {
+        /// disable entry fetch for current session.
+        /// Prevent infinit fetch actions when fetch action throws an exception.
+        final fetchDelayDuration = getDelayBeforeNextAttempt(++_fetchAttempt);
+        _nextFetchDelayedTo = DateTime.now().add(fetchDelayDuration);
+        debugModePrint(
+          '[$runtimeType]: Delaying fetch by: ${fetchDelayDuration.inMilliseconds}ms',
+          enabled: debug,
+        );
+      }
       rethrow;
     } finally {
-      /// disable entry fetch for current session
-      // _needsFetch = false;
       _networkSyncTask.complete();
     }
   }
@@ -198,6 +233,7 @@ class StorageEntry<T> {
       enabled: debug,
     );
     _needsFetch = true;
+    _nextFetchDelayedTo = DateTime.now();
     await requestNetworkSync();
   }
 
@@ -345,6 +381,8 @@ class StorageEntry<T> {
 
     _cellsToSync.clear();
     await storage.clear();
+    _nextFetchDelayedTo = DateTime.now();
+    _fetchAttempt = -1;
 
     debugModePrint(
       '[$runtimeType]: Entry cleared.',

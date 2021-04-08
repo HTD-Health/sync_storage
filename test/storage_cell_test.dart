@@ -70,7 +70,8 @@ void main() {
         expect(cell.needsNetworkSync, isTrue);
         expect(cell.isReadyForSync, isTrue);
 
-        cell.registerSyncAttempt();
+        cell.registerSyncAttempt(
+            getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
 
         expect(cell.isDelayed, isTrue);
         expect(cell.syncDelayedTo, isNotNull);
@@ -87,7 +88,8 @@ void main() {
 
       test("cannot delay already delayed cell", () async {
         final cell = StorageCell(element: TestElement(1));
-        cell.registerSyncAttempt();
+        cell.registerSyncAttempt(
+            getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
         expect(cell.registerSyncAttempt, throwsA(isA<StateError>()));
       });
 

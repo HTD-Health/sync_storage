@@ -108,9 +108,12 @@ void main() {
     });
 
     test(
-        'Do not fetch cells that with larger levels '
+        'Do not fetch cells with larger levels '
         'when exception occured in lower level', () async {
       final entry = getEntryWithLevel(2);
+      expect(entry.fetchAttempt, equals(-1));
+      expect(entry.needsFetch, isTrue);
+      expect(entry.canFetch, isTrue);
 
       for (final entry in entries) {
         when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
@@ -126,6 +129,10 @@ void main() {
       await networkAvailabilityService.goOnline();
       // wait for current sync end
       await syncStorage.syncEntriesWithNetwork();
+
+      expect(entry.fetchAttempt, equals(0));
+      expect(entry.needsFetch, isTrue);
+      expect(entry.canFetch, isFalse);
 
       int notFetchedLevel2Count = 0;
       for (final entry in entries) {
@@ -151,11 +158,17 @@ void main() {
             TestElement(4),
           ]);
 
+      // Wait for fetch avaiability if needed.
+      final diff = entry.nextFetchDelayedTo.difference(DateTime.now());
+      if (!diff.isNegative) {
+        await Future<void>.delayed(diff);
+      }
+
       await syncStorage.syncEntriesWithNetwork();
 
       for (final entry in entries) {
         final cells = await entry.storage.readAllCells();
-        // print("level ${entry.level}:  cellsCount=${cells.length}");
+        print("level ${entry.level}:  cellsCount=${cells.length}");
 
         expect(cells, hasLength(4));
       }

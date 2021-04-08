@@ -36,6 +36,16 @@ class SyncStorage {
   /// Check if [SyncStorage] contains not synced [StorageEntry].
   bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
 
+  bool needsNetworkSyncWhere({@required int maxLevel}) {
+    if (maxLevel == null) {
+      return needsNetworkSync;
+    } else {
+      return _entries.any(
+        (entry) => (entry.level <= maxLevel) && entry.needsNetworkSync,
+      );
+    }
+  }
+
   List<StorageEntry<dynamic>> get entriesToSync =>
       _entries.where((entry) => entry.needsNetworkSync).toList();
 
@@ -85,6 +95,11 @@ class SyncStorage {
             enabled: debug,
           );
 
+          if (entry.isFetchDelayed && !entry.canFetch) {
+            errorLevel = entry.level;
+            continue;
+          }
+
           /// Skip this [StorageEntry], if it is syncing on its own,
           /// or changes have been reverted.
           if (!entry.needsNetworkSync) continue;
@@ -105,7 +120,8 @@ class SyncStorage {
 
       /// If during sync network sync, new data were added.
       /// Sync it too.
-      if (needsNetworkSync) {
+      if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
+        print("AFTER");
         await _syncEntriesWithNetwork();
       }
     } on SyncException {
