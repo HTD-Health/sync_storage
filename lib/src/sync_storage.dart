@@ -27,6 +27,9 @@ class SyncStorage {
   bool get networkAvailable => _networkNotifier.value;
   final _networkNotifier = ValueNotifier<bool>(false);
 
+  int get elementsToSyncCount =>
+      entries.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
+
   Completer<void> _networkSyncTask;
 
   /// Whether [SyncStorage] is syncing entries with network.

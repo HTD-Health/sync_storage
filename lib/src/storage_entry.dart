@@ -83,6 +83,9 @@ class StorageEntry<T> {
       // type of error.
       _cellsToSync.any((cell) => cell.isReadyForSync);
 
+  int get elementsToSyncCount =>
+      _cellsToSync.where((e) => e.isReadyForSync).length;
+
   /// Check if [StorageEntry] contains not synced [StorageCell].
   bool get needsNetworkSync => canFetch || needsElementsSync;
 
