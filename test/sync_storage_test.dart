@@ -70,7 +70,7 @@ void main() {
     });
 
     tearDown(() async {
-      syncStorage.dispose();
+      await syncStorage.dispose();
       reset(networkCallbacks);
     });
 
