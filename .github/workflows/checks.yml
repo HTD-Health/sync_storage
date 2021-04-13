@@ -1,5 +1,6 @@
 name: Checks
 on:
+  release:
   push:
     branches:
       - master
