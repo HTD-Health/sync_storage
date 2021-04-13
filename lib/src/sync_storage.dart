@@ -18,6 +18,21 @@ void debugModePrint(String log, {bool enabled = true}) {
 }
 
 class SyncStorage {
+  /// Returns last sync date
+  DateTime get lastSync => entries.reduce((value, element) {
+        if (element.lastSync == null) {
+          return value;
+        } else if (value.lastSync == null) {
+          return element;
+        } else {
+          if (element.lastSync.isAfter(value.lastSync)) {
+            return element;
+          } else {
+            return value;
+          }
+        }
+      }).lastSync;
+
   final List<StorageEntry<dynamic>> _entries = [];
   List<StorageEntry<dynamic>> get entries => _entries;
 

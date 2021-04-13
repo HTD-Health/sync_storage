@@ -80,8 +80,6 @@ void main() {
       ]);
 
     await networkAvailabilityService.goOffline();
-
-    await syncStorage.syncEntriesWithNetwork();
   });
 
   tearDown(() async {
@@ -111,5 +109,17 @@ void main() {
       await entry.createElement(TestElement(0));
     }
     expect(syncStorage.elementsToSyncCount, equals(entries.length * 2));
+  });
+
+  test("lastSync field works correctly", () async {
+    expect(syncStorage.lastSync, isNull);
+    await networkAvailabilityService.goOnline();
+    final lastSync = syncStorage.lastSync;
+    expect(lastSync, isA<DateTime>());
+
+    await entries.first.createElement(TestElement(0));
+    expect(syncStorage.lastSync, isA<DateTime>());
+    expect(syncStorage.lastSync.isAfter(lastSync), isTrue);
+    expect(entries.last.lastSync.isBefore(syncStorage.lastSync), isTrue);
   });
 }

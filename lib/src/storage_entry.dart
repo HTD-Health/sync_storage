@@ -64,6 +64,8 @@ class StorageEntry<T> {
   final DelayDurationGetter getDelayBeforeNextAttempt;
   final Future<void> Function() networkUpdateCallback;
 
+  DateTime get lastSync => storage.config?.lastSync;
+
   bool get networkAvailable => networkNotifier.value;
   final ValueNotifier<bool> networkNotifier;
 
@@ -204,6 +206,7 @@ class StorageEntry<T> {
 
         await storage.writeConfig(storage.config.copyWith(
           lastFetch: DateTime.now(),
+          lastSync: DateTime.now(),
           needsFetch: false,
         ));
       }
@@ -349,6 +352,10 @@ class StorageEntry<T> {
     /// If new changes to elements have been maed sync them with network.
     if (needsElementsSync && networkAvailable) {
       await _syncElementsWithNetwork();
+    } else {
+      await storage.writeConfig(storage.config.copyWith(
+        lastSync: DateTime.now(),
+      ));
     }
 
     if (hasError) throw SyncException();
