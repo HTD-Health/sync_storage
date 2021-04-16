@@ -10,13 +10,14 @@ import 'data.dart';
 void main() {
   group('Entries levels', () {
     const List<int> levels = [4, 2, 1, 2, 0];
-    List<StorageEntry<TestElement>> entries = [];
+    List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries = [];
 
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
     SyncStorage syncStorage;
 
-    StorageEntry<TestElement> getEntryWithLevel(int level) =>
+    StorageEntry<TestElement, HiveStorageMock<TestElement>> getEntryWithLevel(
+            int level) =>
         entries.firstWhere(
           (element) => element.level == level,
           orElse: () => null,
@@ -37,7 +38,8 @@ void main() {
           const TestElementSerializer(),
         );
         final callbacks = StorageNetworkCallbacksMock<TestElement>();
-        final entry = await syncStorage.registerEntry<TestElement>(
+        final entry = await syncStorage
+            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
           name: 'sync_storage_levels_box$i',
           level: level,
           getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
@@ -66,7 +68,7 @@ void main() {
       await syncStorage.dispose();
       await Future.wait([
         for (int i = 0; i < entries.length; i++)
-          Hive.deleteBoxFromDisk((entries[i].storage as HiveStorage).boxName),
+          Hive.deleteBoxFromDisk((entries[i].storage).boxName),
       ]);
     });
 

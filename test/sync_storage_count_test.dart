@@ -28,7 +28,8 @@ void main() {
   final boxNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
   SyncStorage syncStorage;
   final List<HiveStorageMock<TestElement>> storages = [];
-  final List<StorageEntry<TestElement>> entries = [];
+  final List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries =
+      [];
   final networkAvailabilityService =
       MockedNetworkAvailabilityService(initialIsConnected: false);
   final networkCallbacks = StorageNetworkCallbacksMock<TestElement>();
@@ -71,7 +72,8 @@ void main() {
       ..clear()
       ..addAll([
         for (int i = 0; i < boxNames.length; i++)
-          await syncStorage.registerEntry<TestElement>(
+          await syncStorage
+              .registerEntry<TestElement, HiveStorageMock<TestElement>>(
             name: boxNames[i],
             storage: storages[i],
             networkCallbacks: networkCallbacks,
@@ -114,6 +116,7 @@ void main() {
   test("lastSync field works correctly", () async {
     expect(syncStorage.lastSync, isNull);
     await networkAvailabilityService.goOnline();
+    await Future.delayed(Duration(seconds: 1));
     final lastSync = syncStorage.lastSync;
     expect(lastSync, isA<DateTime>());
 

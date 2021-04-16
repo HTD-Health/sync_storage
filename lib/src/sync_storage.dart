@@ -33,8 +33,8 @@ class SyncStorage {
         }
       }).lastSync;
 
-  final List<StorageEntry<dynamic>> _entries = [];
-  List<StorageEntry<dynamic>> get entries => _entries;
+  final List<StorageEntry> _entries = [];
+  List<StorageEntry> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
   StreamSubscription<bool> _networkAvailabilitySubscription;
@@ -64,7 +64,7 @@ class SyncStorage {
     }
   }
 
-  List<StorageEntry<dynamic>> get entriesToSync => _entries
+  List<StorageEntry> get entriesToSync => _entries
       // entries with fetch delayed needs to be added for
       // level functionality.
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
@@ -180,9 +180,9 @@ class SyncStorage {
     _networkSyncTask.complete();
   }
 
-  Future<StorageEntry<T>> registerEntry<T>({
+  Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
     @required String name,
-    @required Storage<T> storage,
+    @required S storage,
     @required StorageNetworkCallbacks<T> networkCallbacks,
     int level = 0,
     OnCellSyncError<T> onCellSyncError,
@@ -203,7 +203,7 @@ class SyncStorage {
       );
     }
 
-    final entry = StorageEntry<T>(
+    final entry = StorageEntry<T, S>(
       debug: debug,
       name: name,
       level: level,
@@ -240,8 +240,9 @@ class SyncStorage {
   StorageEntry getEntryWithName(String name) =>
       _entries.firstWhere((entry) => entry.name == name, orElse: () => null);
 
-  StorageEntry<T> getRegisteredEntry<T>(String name) => _entries.firstWhere(
-        (entry) => entry is StorageEntry<T> && entry.name == name,
+  StorageEntry<T, S> getRegisteredEntry<T, S extends Storage<T>>(String name) =>
+      _entries.firstWhere(
+        (entry) => entry is StorageEntry<T, S> && entry.name == name,
         orElse: () => null,
       );
 

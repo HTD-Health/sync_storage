@@ -39,7 +39,7 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
   }
 }
 
-class StorageEntry<T> {
+class StorageEntry<T, S extends Storage<T>> {
   final String name;
 
   /// Indicates entry sync priority. Entries with lower level will be
@@ -56,7 +56,7 @@ class StorageEntry<T> {
   ///
   /// By default, all entries have level set to `0`.
   final int level;
-  final Storage<T> storage;
+  final S storage;
   final StorageNetworkCallbacks<T> networkCallbacks;
   final OnCellSyncError<T> onCellSyncError;
   final OnCellMaxAttemptReached<T> onCellMaxAttemptsReached;
