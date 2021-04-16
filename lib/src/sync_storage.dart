@@ -8,6 +8,8 @@ import 'package:sync_storage/src/services/network_availability_service.dart';
 import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/sync_storage.dart';
+import 'errors/errors.dart';
+import 'logs/logs.dart';
 import 'storage_entry.dart';
 
 void debugModePrint(String log, {bool enabled = true}) {
@@ -32,6 +34,9 @@ class SyncStorage {
           }
         }
       }).lastSync;
+
+  final _logsStreamController = StreamController<SyncStorageLog>();
+  Stream<SyncStorageLog> get logs => _logsStreamController.stream;
 
   final List<StorageEntry> _entries = [];
   List<StorageEntry> get entries => _entries;
@@ -84,6 +89,12 @@ class SyncStorage {
         .networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
+
+    if (debug) {
+      _logsStreamController.stream.listen((event) {
+        print("[${event.source}] ${event.message}");
+      });
+    }
   }
 
   void _onNetworkChange(bool networkAvailable) {
@@ -105,16 +116,15 @@ class SyncStorage {
       ..sort(sortEntriesByLevelAscending);
 
     int errorLevel;
+    final errors = <ExceptionDetail>[];
     try {
       for (final entry in sortedEntriesToSync) {
         if (errorLevel != null && entry.level > errorLevel) {
-          throw SyncException();
+          throw SyncLevelException(errorLevel, errors);
         }
         try {
-          debugModePrint(
-            '[SyncStorage]: Syncing entry with name: "${entry.name}".',
-            enabled: debug,
-          );
+          _logsStreamController.sink
+              .add(SyncStorageInfo('Syncing entry with name="${entry.name}".'));
 
           if (entry.isFetchDelayed && !entry.canFetch) {
             errorLevel = entry.level;
@@ -131,13 +141,16 @@ class SyncStorage {
           /// sync all cells with network.
           await entry.syncElementsWithNetwork();
         } on Exception catch (err, stackTrace) {
-          debugModePrint(
-            '[$runtimeType]: Exception caught during entry (${entry.name}) sync: $err, $stackTrace',
-            enabled: debug,
-          );
+          _logsStreamController.sink.add(SyncStorageError(
+            'Exception caught when syncing entry with name="${entry.name}".',
+            error: err,
+            stackTrace: stackTrace,
+          ));
+
           if (errorLevel != null && entry.level > errorLevel) {
-            throw SyncException();
+            throw SyncLevelException(errorLevel, errors);
           } else {
+            errors.add(ExceptionDetail(err, stackTrace));
             errorLevel = entry.level;
           }
         }
@@ -148,36 +161,31 @@ class SyncStorage {
       if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
         await _syncEntriesWithNetwork();
       }
+
+      /// TODO: Change to finally, enable exceptions rethrows
     } on SyncException {
-      debugModePrint(
-        '[$runtimeType]: Breaking sync on level: $errorLevel',
-        enabled: debug,
-      );
+      _logsStreamController.sink.add(SyncStorageWarning(
+        'Breaking sync on level="$errorLevel".',
+      ));
       // rethrow;
     }
   }
 
   /// Sync all entries with network when available.
   Future<void> syncEntriesWithNetwork() async {
-    debugModePrint(
-      '[SyncStorage]: Requesting entries sync.',
-      enabled: debug,
-    );
-
-    debugModePrint(
-      '[SyncStorage]: Registered entries to sync: ${entriesToSync.length}.',
-      enabled: debug,
-    );
+    _logsStreamController.sink.add(SyncStorageInfo(
+        'Requesting entries sync. Registered entries to sync: ${entriesToSync.length}.'));
 
     /// If network not available or already syncing
     /// and return current sync task future if available.
     if (!networkAvailable || isSyncing) return _networkSyncTask?.future;
 
     _networkSyncTask = Completer<void>();
-
-    await _syncEntriesWithNetwork();
-
-    _networkSyncTask.complete();
+    try {
+      await _syncEntriesWithNetwork();
+    } finally {
+      _networkSyncTask.complete();
+    }
   }
 
   Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
@@ -189,10 +197,8 @@ class SyncStorage {
     ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
     DelayDurationGetter getDelayBeforeNextAttempt,
   }) async {
-    debugModePrint(
-      '[SyncStorage]: Registering entry with name: $name',
-      enabled: debug,
-    );
+    _logsStreamController.sink
+        .add(SyncStorageInfo('Registering entry with name="$name"'));
 
     if (getEntryWithName(name) != null) {
       throw ArgumentError.value(
@@ -214,16 +220,14 @@ class SyncStorage {
       onCellMaxAttemptsReached: onCellMaxAttemptsReached,
       networkNotifier: _networkNotifier,
       getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
+      logsSink: _logsStreamController.sink,
     );
     await entry.initialize();
     _entries.add(entry);
-
-    debugModePrint(
-      '[SyncStorage]: Registered entry with name: "$name", '
+    _logsStreamController.sink.add(SyncStorageInfo(
+      ' Registered entry with name: "$name", '
       'Elements to sync: ${entry.cellsToSync.length}.',
-      enabled: debug,
-    );
-
+    ));
     // await syncEntriesWithNetwork();
 
     return entry;
@@ -258,5 +262,6 @@ class SyncStorage {
     _networkNotifier.dispose();
     _networkAvailabilitySubscription.cancel();
     await disposeAllEntries();
+    _logsStreamController.close();
   }
 }

@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:mockito/mockito.dart';
+import 'package:sync_storage/src/errors/errors.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/src/storage_entry.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -76,7 +77,7 @@ void main() {
         'Do not sync cells that with larger levels '
         'when exception occured in lower level', () async {
       final entry = getEntryWithLevel(2);
-      when(entry.networkCallbacks.onCreate(any)).thenThrow(SyncException());
+      when(entry.networkCallbacks.onCreate(any)).thenThrow(SyncException([]));
 
       for (final entry in entries) {
         final newElement = const TestElement(1);
@@ -127,7 +128,7 @@ void main() {
             ]);
       }
 
-      when(entry.networkCallbacks.onFetch()).thenThrow(SyncException());
+      when(entry.networkCallbacks.onFetch()).thenThrow(SyncException([]));
 
       await networkAvailabilityService.goOnline();
       // wait for current sync end

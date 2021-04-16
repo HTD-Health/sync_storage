@@ -43,7 +43,7 @@ class StorageCell<T> {
   /// Register failed network synchronization.
   ///
   /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is already reached.
-  void registerSyncAttempt({
+  Duration registerSyncAttempt({
     @required DelayDurationGetter getDelayBeforeNextAttempt,
   }) {
     if (isDelayed) {
@@ -54,6 +54,8 @@ class StorageCell<T> {
     final delay = getDelayBeforeNextAttempt(attempt);
 
     _syncDelayedTo = DateTime.now().add(delay);
+
+    return delay;
   }
 
   void resetSyncAttemptsCount() {

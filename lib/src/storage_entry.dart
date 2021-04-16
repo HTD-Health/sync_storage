@@ -8,12 +8,12 @@ import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/serializer.dart';
 
+import 'errors/errors.dart';
 import 'helpers/sync_indicator.dart';
+import 'logs/logs.dart';
 import 'sync_storage.dart';
 
 part 'storage_cell.dart';
-
-class SyncException implements Exception {}
 
 typedef OnCellSyncError<T> = bool Function(
   StorageCell<T> cell,
@@ -63,6 +63,7 @@ class StorageEntry<T, S extends Storage<T>> {
   final bool debug;
   final DelayDurationGetter getDelayBeforeNextAttempt;
   final Future<void> Function() networkUpdateCallback;
+  final StreamSink<SyncStorageLog> _logsSink;
 
   DateTime get lastSync => storage.config?.lastSync;
 
@@ -121,11 +122,13 @@ class StorageEntry<T, S extends Storage<T>> {
 
     /// if true, logs are printed to the console
     this.debug = false,
+    @required StreamSink<SyncStorageLog> logsSink,
 
     /// Returns duration that will be used to delayed
     /// next sync attempt for cell.
     DelayDurationGetter getDelayBeforeNextAttempt,
-  })  : getDelayBeforeNextAttempt =
+  })  : _logsSink = logsSink,
+        getDelayBeforeNextAttempt =
             getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
         level = level ?? 0,
         _fetchIndicator = SyncIndicator(
@@ -171,28 +174,31 @@ class StorageEntry<T, S extends Storage<T>> {
 
     try {
       if (needsElementsSync) {
-        debugModePrint(
-          '[$runtimeType]: Syncing elements with network...',
-          enabled: debug,
-        );
+        _logsSink.add(StorageEntryLog(
+          this.name,
+          "Syncing elements with network...",
+        ));
         await _syncElementsWithNetwork();
-        debugModePrint(
-          '[$runtimeType]: Elements sync completed.',
-          enabled: debug,
-        );
+
+        _logsSink.add(StorageEntryLog(
+          this.name,
+          "Elements sync completed.",
+        ));
       }
 
       if (canFetch && !needsElementsSync) {
-        debugModePrint(
-          '[$runtimeType]: Fetching elements from the network...',
-          enabled: debug,
-        );
+        _logsSink.add(StorageEntryLog(
+          this.name,
+          "Fetching elements from the network...",
+        ));
+
         final cells = await _fetchAllElementsFromNetwork();
         _fetchIndicator.reset(needSync: false);
-        debugModePrint(
-          '[$runtimeType]: Elements fetched: count=${cells?.length}.',
-          enabled: debug,
-        );
+
+        _logsSink.add(StorageEntryLog(
+          this.name,
+          "Elements fetched: count=${cells?.length}.",
+        ));
 
         /// If cells are null, current cells will not be replaced.
         if (cells != null) {
@@ -211,19 +217,23 @@ class StorageEntry<T, S extends Storage<T>> {
         ));
       }
     } on Exception catch (err, stackTrace) {
-      debugModePrint(
-        '[$runtimeType]: Error during "syncElementsWithNetwork" action: $err $stackTrace',
-        enabled: debug,
-      );
+      _logsSink.add(StorageEntryError(
+        this.name,
+        "Syncing elements with network...",
+        error: err,
+        stackTrace: stackTrace,
+      ));
 
       if (_fetchIndicator.needSync) {
         /// disable entry fetch for current session.
         /// Prevent infinit fetch actions when fetch action throws an exception.
         final fetchDelayDuration = _fetchIndicator.delay();
-        debugModePrint(
-          '[$runtimeType]: Delaying fetch by: ${fetchDelayDuration.inMilliseconds}ms',
-          enabled: debug,
-        );
+        _logsSink.add(StorageEntryFetchDelayed(
+          this.name,
+          "Syncing elements with network...",
+          duration: fetchDelayDuration,
+          delayedTo: _fetchIndicator.delayedTo,
+        ));
       }
       rethrow;
     } finally {
@@ -232,16 +242,16 @@ class StorageEntry<T, S extends Storage<T>> {
   }
 
   Future<void> refetch() async {
-    debugModePrint(
-      '[$runtimeType]: Marked the entry as refetch is needed.',
-      enabled: debug,
-    );
+    _logsSink.add(StorageEntryLog(
+      this.name,
+      "Marked the entry as refetch is needed.",
+    ));
     _fetchIndicator.reset(needSync: true);
     await requestNetworkSync();
   }
 
   Future<void> _syncElementsWithNetwork() async {
-    bool hasError = false;
+    List<ExceptionDetail> errors = [];
 
     for (final cell in cellsReadyToSync) {
       /// end task when network is not available
@@ -251,20 +261,26 @@ class StorageEntry<T, S extends Storage<T>> {
         T newElement;
         switch (cell.actionNeeded) {
           case SyncAction.create:
-            debugModePrint(
-              '[$runtimeType]: Sync action: CREATE ${cell.element.runtimeType}',
-              enabled: debug,
-            );
+            _logsSink.add(CellSyncAction(
+              this.name,
+              cell.id.hexString,
+              "Calling onCreate network callback for "
+              "element with id=${cell.id.hexString}",
+              action: cell.actionNeeded,
+            ));
 
             /// Make CREATE request
             newElement = await networkCallbacks.onCreate(cell.element);
 
             break;
           case SyncAction.update:
-            debugModePrint(
-              '[$runtimeType]: Sync action: UPDATE ${cell.element.runtimeType}',
-              enabled: debug,
-            );
+            _logsSink.add(CellSyncAction(
+              this.name,
+              cell.id.hexString,
+              "Calling onUpdate network callback for "
+              "element with id=${cell.id.hexString}",
+              action: cell.actionNeeded,
+            ));
 
             /// Make UPDATE request
             newElement = await networkCallbacks.onUpdate(
@@ -274,10 +290,13 @@ class StorageEntry<T, S extends Storage<T>> {
 
             break;
           case SyncAction.delete:
-            debugModePrint(
-              '[$runtimeType]: Sync action: DELETE ${cell.element.runtimeType}',
-              enabled: debug,
-            );
+            _logsSink.add(CellSyncAction(
+              this.name,
+              cell.id.hexString,
+              "Calling onDelete network callback for "
+              "element with id=${cell.id.hexString}",
+              action: cell.actionNeeded,
+            ));
 
             /// if cell was synced (it exists on the network),
             /// remove its representation from the network
@@ -287,16 +306,22 @@ class StorageEntry<T, S extends Storage<T>> {
             break;
 
           case SyncAction.none:
-            debugModePrint(
-              '[$runtimeType]: No action is required for cell with id=${cell.id.hexString}. Skipping...',
-              enabled: debug,
-            );
+            _logsSink.add(CellSyncActionWarning(
+              this.name,
+              cell.id.hexString,
+              "No action is required for cell with "
+              "id=${cell.id.hexString}. Skipping...",
+              action: cell.actionNeeded,
+            ));
             break;
           default:
-            debugModePrint(
-              '[$runtimeType]: Not supported sync action, skipping...',
-              enabled: debug,
-            );
+            _logsSink.add(CellSyncActionWarning(
+              this.name,
+              cell.id.hexString,
+              "Not supported sync action (${cell.actionNeeded}) for cell "
+              "with id=${cell.id.hexString}. Skipping...",
+              action: cell.actionNeeded,
+            ));
             break;
         }
 
@@ -304,10 +329,22 @@ class StorageEntry<T, S extends Storage<T>> {
           // If newElement returned from onUpdate or onCreate functions is not null,
           // cell element will be replaced with the new one.
           cell._element = newElement;
+          _logsSink.add(CellInfo(
+            this.name,
+            cell.id.hexString,
+            "New element received from the network for cell "
+            "with id=${cell.id.hexString}. Updated.",
+          ));
         }
 
         // After successfull sync action. Cell is marked as synced.
         cell.markAsSynced();
+
+        _logsSink.add(CellInfo(
+          this.name,
+          cell.id.hexString,
+          "Cell with id=${cell.id.hexString} synced successfully.",
+        ));
 
         // synced cell should be removed from cells to sync.
         _removeCellFromCellsToSync(cell);
@@ -319,16 +356,28 @@ class StorageEntry<T, S extends Storage<T>> {
           // Changes were made for current cell. It should be synced with storage.
           await storage.writeCell(cell);
         }
-      } catch (err, stackTrace) {
-        debugModePrint(
-          '[$runtimeType]: Exception caught during network sync: $err, $stackTrace',
-          enabled: debug,
-        );
+      } on Exception catch (err, stackTrace) {
+        _logsSink.add(CellSyncActionError(
+          this.name,
+          cell.id.hexString,
+          "Exception caught during cell sync (cell id=${cell.id.hexString}).",
+          action: cell.actionNeeded,
+          error: err,
+          stackTrace: stackTrace,
+        ));
 
         /// register sync attempt on failed sync.
-        cell.registerSyncAttempt(
+        final delay = cell.registerSyncAttempt(
           getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
         );
+
+        _logsSink.add(CellSyncDelayed(
+          this.name,
+          cell.id.hexString,
+          "Sync for cell with id=${cell.id.hexString} delayed for ${delay.inMilliseconds}ms",
+          delayedTo: cell.syncDelayedTo,
+          duration: delay,
+        ));
 
         final bool delete =
             onCellSyncError?.call(cell, err, stackTrace) ?? false;
@@ -338,7 +387,7 @@ class StorageEntry<T, S extends Storage<T>> {
           await storage.writeCell(cell);
         }
 
-        hasError = true;
+        errors.add(ExceptionDetail(err, stackTrace));
       } finally {
         if (cell.maxSyncAttemptsReached) {
           final bool delete = onCellMaxAttemptsReached?.call(cell) ?? true;
@@ -358,7 +407,7 @@ class StorageEntry<T, S extends Storage<T>> {
       ));
     }
 
-    if (hasError) throw SyncException();
+    if (errors.isNotEmpty) throw SyncException(errors);
   }
 
   void _removeCellFromCellsToSync(StorageCell<T> cell) {
@@ -378,10 +427,10 @@ class StorageEntry<T, S extends Storage<T>> {
   /// This will not cause refetch.
   /// To refetch all data use [refetch] method.
   Future<void> clear() async {
-    debugModePrint(
-      '[$runtimeType]: Clearing entry...',
-      enabled: debug,
-    );
+    _logsSink.add(StorageEntryInfo(
+      name,
+      "Clearing entry with name=\"$name\"...",
+    ));
 
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
@@ -390,10 +439,10 @@ class StorageEntry<T, S extends Storage<T>> {
     _cellsToSync.clear();
     await storage.clear();
 
-    debugModePrint(
-      '[$runtimeType]: Entry cleared.',
-      enabled: debug,
-    );
+    _logsSink.add(StorageEntryInfo(
+      name,
+      "Entry with name=\"$name\" cleared.",
+    ));
   }
 
   Future<void> dispose() async {

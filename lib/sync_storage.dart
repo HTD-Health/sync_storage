@@ -1,13 +1,14 @@
 library sync_storage;
 
 export 'src/sync_storage.dart' show SyncStorage;
+export 'src/errors/errors.dart';
+export 'src/logs/logs.dart';
 export 'src/storage/storage_config.dart' show StorageConfig;
 export 'src/storage_entry.dart'
     show
         StorageEntry,
         defaultGetDelayBeforeNextAttempt,
         StorageCell,
-        SyncException,
         DelayDurationGetter,
         OnCellMaxAttemptReached,
         OnCellSyncError,
