@@ -433,6 +433,41 @@ class StorageEntry<T, S extends Storage<T>> {
     return cells;
   }
 
+  /// Puts cell to the storage.
+  ///
+  /// Unlike the [updateCell] method. This method will not trigger
+  /// a network sync. Also, provided cell will be marked as synced.
+  ///
+  /// Calling putCell with a storage cell that is already queued for sync
+  /// will throw the StateError.
+  @experimental
+  Future<void> putCell(
+    StorageCell<T> cell,
+  ) async {
+    ArgumentError.checkNotNull(cell, 'cell');
+
+    final currentCell = await storage.readCell(cell.id);
+    if (currentCell == null) {
+      throw ArgumentError.value(
+        cell,
+        'cell',
+        'Cannot put cell with id="${cell.id.hexString}. '
+            'Cell with provided id does not exist.',
+      );
+    }
+
+    final cellIndex =
+        _cellsToSync.indexWhere((cellToSync) => cellToSync.id == cell.id);
+    final isCellAlreadyInCellsToSync = cellIndex >= 0;
+
+    if (isCellAlreadyInCellsToSync) {
+      throw StateError("Provided StorageCell is already queued for sync.");
+    }
+
+    cell.markAsSynced();
+    await storage.writeCell(cell);
+  }
+
   /// Update element in storage and network.
   Future<void> updateCell(
     StorageCell<T> cell,
