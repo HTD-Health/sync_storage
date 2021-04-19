@@ -130,9 +130,8 @@ void main() {
       when(entry.networkCallbacks.onFetch()).thenThrow(SyncException([]));
 
       await networkAvailabilityService.goOnline();
-      // wait for current sync end
-      expect(() async => syncStorage.syncEntriesWithNetwork(),
-          throwsA(isA<SyncException>()));
+
+      await syncStorage.syncEntriesWithNetwork();
 
       expect(entry.fetchAttempt, equals(0));
       expect(entry.needsFetch, isTrue);

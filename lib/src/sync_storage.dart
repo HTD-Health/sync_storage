@@ -110,9 +110,7 @@ class SyncStorage {
           'Network connection is now available.',
         ));
 
-        /// This sync request is triggered internally, so it is
-        /// not possible to catch error by the user.
-        syncEntriesWithNetwork().catchError((dynamic _) {});
+        syncEntriesWithNetwork();
       }
     }
   }
@@ -205,6 +203,9 @@ class SyncStorage {
     _networkSyncTask = Completer<void>();
     try {
       await _syncEntriesWithNetwork();
+    } on Exception {
+      //? Errors should not be thrown when sync failed.
+
     } finally {
       _networkSyncTask.complete();
     }

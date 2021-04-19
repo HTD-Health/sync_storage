@@ -220,14 +220,6 @@ class StorageEntry<T, S extends Storage<T>> {
         ));
       }
     } on Exception {
-      /// Do not log error here. Error will be logged by [SyncStorage].
-      // _logsSink.add(StorageEntryError(
-      //   name,
-      //   'Exception caught when syncing entry with name="${name}".',
-      //   error: err,
-      //   stackTrace: stackTrace,
-      // ));
-
       if (_fetchIndicator.needSync) {
         /// disable entry fetch for current session.
         /// Prevent infinit fetch actions when fetch action throws an exception.
