@@ -216,42 +216,52 @@ class SyncStorage {
     ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
     DelayDurationGetter getDelayBeforeNextAttempt,
   }) async {
-    _logsStreamController.sink
-        .add(SyncStorageInfo('Registering entry with name="$name"'));
+    try {
+      _logsStreamController.sink
+          .add(SyncStorageInfo('Registering entry with name="$name"'));
 
-    if (getEntryWithName(name) != null) {
-      throw ArgumentError.value(
-        name,
-        'name',
-        'Entry with provided name is already registred.\n'
-            'Instead use "getRegisteredEntry" method.',
+      if (getEntryWithName(name) != null) {
+        throw ArgumentError.value(
+          name,
+          'name',
+          'Entry with provided name is already registred.\n'
+              'Instead use "getRegisteredEntry" method.',
+        );
+      }
+
+      final entry = StorageEntry<T, S>(
+        debug: debug,
+        name: name,
+        level: level,
+        storage: storage,
+        networkCallbacks: networkCallbacks,
+        networkUpdateCallback: syncEntriesWithNetwork,
+        onCellSyncError: onCellSyncError,
+        onCellMaxAttemptsReached: onCellMaxAttemptsReached,
+        networkNotifier: _networkNotifier,
+        getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
+        logsSink: _logsStreamController.sink,
       );
+      await entry.initialize();
+      _entries.add(entry);
+      final needsFetch = entry.needsFetch;
+      _logsStreamController.sink.add(SyncStorageInfo(
+        'Registered entry with name: "$name".\n'
+        'elements to sync: ${entry.cellsToSync.length},\n'
+        'needs fetch: ${needsFetch}.',
+      ));
+      // await syncEntriesWithNetwork();
+      return entry;
+    } on Exception catch (err, st) {
+      _logsStreamController.sink.add(SyncStorageError(
+        'Error during entry initialization with name: "$name".',
+        error: err,
+        stackTrace: st,
+      ));
+      _errorStreamController.add(ExceptionDetail(err, st));
+
+      rethrow;
     }
-
-    final entry = StorageEntry<T, S>(
-      debug: debug,
-      name: name,
-      level: level,
-      storage: storage,
-      networkCallbacks: networkCallbacks,
-      networkUpdateCallback: syncEntriesWithNetwork,
-      onCellSyncError: onCellSyncError,
-      onCellMaxAttemptsReached: onCellMaxAttemptsReached,
-      networkNotifier: _networkNotifier,
-      getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
-      logsSink: _logsStreamController.sink,
-    );
-    await entry.initialize();
-    _entries.add(entry);
-    final needsFetch = entry.needsFetch;
-    _logsStreamController.sink.add(SyncStorageInfo(
-      'Registered entry with name: "$name".\n'
-      'elements to sync: ${entry.cellsToSync.length},\n'
-      'needs fetch: ${needsFetch}.',
-    ));
-    // await syncEntriesWithNetwork();
-
-    return entry;
   }
 
   Future<void> disposeEntryWithName(String name) async {
@@ -271,6 +281,8 @@ class SyncStorage {
         orElse: () => null,
       );
 
+  @protected
+  @visibleForTesting
   Future<void> disposeAllEntries() async {
     final entries = [..._entries];
     _entries.clear();
@@ -284,5 +296,11 @@ class SyncStorage {
     _networkAvailabilitySubscription.cancel();
     await disposeAllEntries();
     _logsStreamController.close();
+  }
+
+  /// Removes dispose and remove all entries from the sync storage.
+  void clear() {
+    disposeAllEntries();
+    _entries.clear();
   }
 }

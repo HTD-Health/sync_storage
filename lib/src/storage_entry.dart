@@ -153,7 +153,6 @@ class StorageEntry<T, S extends Storage<T>> {
 
   Future<void> initialize() async {
     await storage.initialize();
-
     _fetchIndicator.reset(needSync: storage.config.needsFetch);
     _cellsToSync = (await storage.readNotSyncedCells()).toList();
   }
