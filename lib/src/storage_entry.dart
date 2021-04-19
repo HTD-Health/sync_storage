@@ -174,20 +174,20 @@ class StorageEntry<T, S extends Storage<T>> {
 
     try {
       if (needsElementsSync) {
-        _logsSink.add(StorageEntryLog(
+        _logsSink.add(StorageEntryInfo(
           this.name,
           'Syncing elements with network...',
         ));
         await _syncElementsWithNetwork();
 
-        _logsSink.add(StorageEntryLog(
+        _logsSink.add(StorageEntryInfo(
           this.name,
           'Elements sync completed.',
         ));
       }
 
       if (canFetch && !needsElementsSync) {
-        _logsSink.add(StorageEntryLog(
+        _logsSink.add(StorageEntryInfo(
           this.name,
           'Fetching elements from the network...',
         ));
@@ -195,7 +195,7 @@ class StorageEntry<T, S extends Storage<T>> {
         final cells = await _fetchAllElementsFromNetwork();
         _fetchIndicator.reset(needSync: false);
 
-        _logsSink.add(StorageEntryLog(
+        _logsSink.add(StorageEntryInfo(
           this.name,
           'Elements fetched: count=${cells?.length}.',
         ));
@@ -207,6 +207,10 @@ class StorageEntry<T, S extends Storage<T>> {
 
           /// new cells are fetched from the network.
           /// Current cells should be replaced with new one.
+          _logsSink.add(StorageEntryInfo(
+            this.name,
+            'Writing ${cells.length} cells to the storage.',
+          ));
           await storage.writeAllCells(cells);
         }
 
@@ -242,7 +246,7 @@ class StorageEntry<T, S extends Storage<T>> {
   }
 
   Future<void> refetch() async {
-    _logsSink.add(StorageEntryLog(
+    _logsSink.add(StorageEntryInfo(
       this.name,
       'Marked the entry as refetch is needed.',
     ));
