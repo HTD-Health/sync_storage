@@ -12,6 +12,7 @@ import 'errors/errors.dart';
 import 'logs/logs.dart';
 import 'storage_entry.dart';
 
+@deprecated
 void debugModePrint(String log, {bool enabled = true}) {
   assert((() {
     if (enabled) print(log);
@@ -37,6 +38,8 @@ class SyncStorage {
 
   final _logsStreamController = StreamController<SyncStorageLog>();
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
+  final _errorStreamController = StreamController<SyncException>();
+  Stream<SyncException> get errors => _errorStreamController.stream;
 
   final List<StorageEntry> _entries = [];
   List<StorageEntry> get entries => _entries;
@@ -85,8 +88,7 @@ class SyncStorage {
         networkAvailabilityService != null, 'networkService cannot be null.');
 
     _networkNotifier.value = networkAvailabilityService.isConnected ?? true;
-    _networkAvailabilitySubscription = this
-        .networkAvailabilityService
+    _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
 
@@ -97,11 +99,19 @@ class SyncStorage {
     }
   }
 
-  void _onNetworkChange(bool networkAvailable) {
+  Future<void> _onNetworkChange(bool networkAvailable) async {
     if (networkAvailable != _networkNotifier.value) {
       _networkNotifier.value = networkAvailable;
       if (networkAvailable) {
-        syncEntriesWithNetwork();
+        /// This sync request is triggered internally, so it is
+        /// not possible to catch error by the user.
+        ///
+        /// Error is caught here and pass to the user via errorStream.
+        try {
+          await syncEntriesWithNetwork();
+        } on SyncException catch (err) {
+          _errorStreamController.add(err);
+        }
       }
     }
   }
@@ -167,7 +177,7 @@ class SyncStorage {
       _logsStreamController.sink.add(SyncStorageWarning(
         'Breaking sync on level="$errorLevel".',
       ));
-      // rethrow;
+      rethrow;
     }
   }
 
