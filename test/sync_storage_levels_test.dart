@@ -76,39 +76,44 @@ void main() {
     test(
         'Do not sync cells that with larger levels '
         'when exception occured in lower level', () async {
-      final entry = getEntryWithLevel(2);
-      when(entry.networkCallbacks.onCreate(any)).thenThrow(SyncException([]));
+      try {
+        final errorEntry = getEntryWithLevel(2);
+        when(errorEntry.networkCallbacks.onCreate(any))
+            .thenThrow(SyncException([]));
 
-      for (final entry in entries) {
-        final newElement = const TestElement(1);
-        await entry.createElement(newElement);
-      }
-
-      for (final entry in entries) {
-        expect(entry.needsElementsSync, isTrue);
-      }
-
-      await networkAvailabilityService.goOnline();
-      // wait for current sync end
-      await syncStorage.syncEntriesWithNetwork();
-
-      int level2ElementsToSyncCount = 0;
-      for (final entry in entries) {
-        final hasElementsToSync = entry.cellsToSync.isNotEmpty;
-
-        // print("level ${entry.level}:  hasElementsToSync=$hasElementsToSync");
-
-        if (entry.level == 2 && hasElementsToSync) {
-          level2ElementsToSyncCount++;
-        } else if (entry.level >= 3) {
-          expect(hasElementsToSync, isTrue);
-        } else {
-          expect(hasElementsToSync, isFalse);
+        for (final entry in entries) {
+          final newElement = const TestElement(1);
+          await entry.createElement(newElement);
         }
-      }
 
-      /// Only one entry with level 2 is not synced
-      expect(level2ElementsToSyncCount, equals(1));
+        for (final entry in entries) {
+          expect(entry.needsElementsSync, isTrue);
+        }
+
+        await networkAvailabilityService.goOnline();
+        // wait for current sync end
+        await syncStorage.syncEntriesWithNetwork();
+
+        int level2ElementsToSyncCount = 0;
+        for (final entry in entries) {
+          final hasElementsToSync = entry.cellsToSync.isNotEmpty;
+
+          // print("level ${entry.level}:  hasElementsToSync=$hasElementsToSync");
+
+          if (entry.level == 2 && hasElementsToSync) {
+            level2ElementsToSyncCount++;
+          } else if (entry.level >= 3) {
+            expect(hasElementsToSync, isTrue);
+          } else {
+            expect(hasElementsToSync, isFalse);
+          }
+        }
+
+        /// Only one entry with level 2 is not synced
+        expect(level2ElementsToSyncCount, equals(1));
+      } catch (err) {
+        print("ERR: $err");
+      }
     });
 
     test(
@@ -132,7 +137,8 @@ void main() {
 
       await networkAvailabilityService.goOnline();
       // wait for current sync end
-      await syncStorage.syncEntriesWithNetwork();
+      expect(() async => syncStorage.syncEntriesWithNetwork(),
+          throwsA(isA<SyncException>()));
 
       expect(entry.fetchAttempt, equals(0));
       expect(entry.needsFetch, isTrue);

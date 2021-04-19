@@ -38,8 +38,8 @@ class SyncStorage {
 
   final _logsStreamController = StreamController<SyncStorageLog>();
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
-  final _errorStreamController = StreamController<SyncException>();
-  Stream<SyncException> get errors => _errorStreamController.stream;
+  final _errorStreamController = StreamController<ExceptionDetail>();
+  Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
   final List<StorageEntry> _entries = [];
   List<StorageEntry> get entries => _entries;
@@ -99,19 +99,13 @@ class SyncStorage {
     }
   }
 
-  Future<void> _onNetworkChange(bool networkAvailable) async {
+  void _onNetworkChange(bool networkAvailable) {
     if (networkAvailable != _networkNotifier.value) {
       _networkNotifier.value = networkAvailable;
       if (networkAvailable) {
         /// This sync request is triggered internally, so it is
         /// not possible to catch error by the user.
-        ///
-        /// Error is caught here and pass to the user via errorStream.
-        try {
-          await syncEntriesWithNetwork();
-        } on SyncException catch (err) {
-          _errorStreamController.add(err);
-        }
+        syncEntriesWithNetwork().catchError((_) {});
       }
     }
   }
@@ -156,6 +150,7 @@ class SyncStorage {
             error: err,
             stackTrace: stackTrace,
           ));
+          _errorStreamController.add(ExceptionDetail(err, stackTrace));
 
           if (errorLevel != null && entry.level > errorLevel) {
             throw SyncLevelException(errorLevel, errors);
@@ -171,12 +166,11 @@ class SyncStorage {
       if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
         await _syncEntriesWithNetwork();
       }
-
-      /// TODO: Change to finally, enable exceptions rethrows
-    } on SyncException {
+    } on SyncException catch (err, stackTrace) {
       _logsStreamController.sink.add(SyncStorageWarning(
         'Breaking sync on level="$errorLevel".',
       ));
+      _errorStreamController.add(ExceptionDetail(err, stackTrace));
       rethrow;
     }
   }
