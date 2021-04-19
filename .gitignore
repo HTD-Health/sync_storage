@@ -121,3 +121,6 @@ app.*.symbols
 
 # All hive storages
 *.hive
+
+# fvm
+.fvm

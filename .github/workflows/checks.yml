@@ -15,6 +15,6 @@ jobs:
       - name: Getting packages
         run: flutter pub get
       - name: analyzis
-        run: flutter analyze . --fatal-infos
+        run: flutter analyze .
       - name: tests
         run: flutter test

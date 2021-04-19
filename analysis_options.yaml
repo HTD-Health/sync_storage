@@ -107,7 +107,7 @@ analyzer:
     prefer_const_constructors: warning
     camel_case_types: error
     # allow having TODOs in the code
-    deprecated_member_use_from_same_package: info
+    deprecated_member_use_from_same_package: ignore
     todo: ignore
     # Ignore analyzer hints for updating pubspecs when using Future or
     # Stream and not importing dart:async
