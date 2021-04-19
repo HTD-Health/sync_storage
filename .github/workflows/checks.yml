@@ -12,11 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: subosito/flutter-action@v1.4.0
-        with:
-          flutter-version: "1.22.6"
       - name: Getting packages
         run: flutter pub get
       - name: analyzis
-        run: flutter analyze .
+        run: flutter analyze . --fatal-infos
       - name: tests
         run: flutter test
