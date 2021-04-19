@@ -219,25 +219,28 @@ class StorageEntry<T, S extends Storage<T>> {
           needsFetch: false,
         ));
       }
-    } on Exception catch (err, stackTrace) {
-      _logsSink.add(StorageEntryError(
-        this.name,
-        'Syncing elements with network...',
-        error: err,
-        stackTrace: stackTrace,
-      ));
+    } on Exception {
+      /// Do not log error here. Error will be logged by [SyncStorage].
+      // _logsSink.add(StorageEntryError(
+      //   name,
+      //   'Exception caught when syncing entry with name="${name}".',
+      //   error: err,
+      //   stackTrace: stackTrace,
+      // ));
 
       if (_fetchIndicator.needSync) {
         /// disable entry fetch for current session.
         /// Prevent infinit fetch actions when fetch action throws an exception.
         final fetchDelayDuration = _fetchIndicator.delay();
         _logsSink.add(StorageEntryFetchDelayed(
-          this.name,
-          'Syncing elements with network...',
+          name,
+          'Fetch for entry with name "${name}" is '
+          'delayed by ${fetchDelayDuration.inMilliseconds}ms.',
           duration: fetchDelayDuration,
           delayedTo: _fetchIndicator.delayedTo,
         ));
       }
+
       rethrow;
     } finally {
       _networkSyncTask.complete();
@@ -379,7 +382,7 @@ class StorageEntry<T, S extends Storage<T>> {
           this.name,
           cell.id.hexString,
           'Sync for cell with id=${cell.id.hexString} delayed '
-          'for ${delay.inMilliseconds}ms',
+          'by ${delay.inMilliseconds}ms',
           delayedTo: cell.syncDelayedTo,
           duration: delay,
         ));
