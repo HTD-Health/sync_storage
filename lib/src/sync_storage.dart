@@ -103,6 +103,10 @@ class SyncStorage {
     if (networkAvailable != _networkNotifier.value) {
       _networkNotifier.value = networkAvailable;
       if (networkAvailable) {
+        _logsStreamController.sink.add(SyncStorageInfo(
+          'Network connection is now available.',
+        ));
+
         /// This sync request is triggered internally, so it is
         /// not possible to catch error by the user.
         syncEntriesWithNetwork().catchError((dynamic _) {});
@@ -182,9 +186,18 @@ class SyncStorage {
       'to sync: ${entriesToSync.length}.',
     ));
 
-    /// If network not available or already syncing
-    /// and return current sync task future if available.
-    if (!networkAvailable || isSyncing) return _networkSyncTask?.future;
+    /// If there is no network connection, do not perform
+    /// the network synchronization steps
+    if (!networkAvailable) {
+      _logsStreamController.sink.add(SyncStorageWarning(
+        'Network connection is currently not available. '
+        'Waiting for connection...',
+      ));
+      return;
+    }
+
+    /// If already syncing return current sync task future if available.
+    if (isSyncing) return _networkSyncTask?.future;
 
     _networkSyncTask = Completer<void>();
     try {
