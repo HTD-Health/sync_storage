@@ -36,9 +36,9 @@ class SyncStorage {
         }
       }).lastSync;
 
-  final _logsStreamController = StreamController<SyncStorageLog>();
+  final _logsStreamController = StreamController<SyncStorageLog>.broadcast();
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
-  final _errorStreamController = StreamController<ExceptionDetail>();
+  final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
   Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
   final List<StorageEntry> _entries = [];
@@ -230,9 +230,11 @@ class SyncStorage {
     );
     await entry.initialize();
     _entries.add(entry);
+    final needsFetch = entry.needsFetch;
     _logsStreamController.sink.add(SyncStorageInfo(
-      'Registered entry with name: "$name", '
-      'Elements to sync: ${entry.cellsToSync.length}.',
+      'Registered entry with name: "$name".\n'
+      'elements to sync: ${entry.cellsToSync.length},\n'
+      'needs fetch: ${needsFetch}.',
     ));
     // await syncEntriesWithNetwork();
 
