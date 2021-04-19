@@ -31,7 +31,7 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
     _connectivity.checkConnectivity().then(_handleConnectivityChange);
   }
 
-  void _handleConnectivityChange(ConnectivityResult event) async {
+  Future<void> _handleConnectivityChange(ConnectivityResult event) async {
     debugModePrint('[$runtimeType] ConnectivityChange: $event', enabled: debug);
     switch (event) {
       case ConnectivityResult.mobile:

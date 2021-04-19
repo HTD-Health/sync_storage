@@ -35,7 +35,7 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
       Duration(hours: 1),
     ][attemptNumber];
   } else {
-    return Duration(days: 1);
+    return const Duration(days: 1);
   }
 }
 
@@ -51,8 +51,8 @@ class StorageEntry<T, S extends Storage<T>> {
   ///
   /// It could be helpful for maintaining database relations.
   /// For example elements with level `1` are nested in elements with level
-  /// `0`. So it is not possible to store level `1` element when its' parent (element with
-  /// level `0`) does not exixt (is not fetched).
+  /// `0`. So it is not possible to store level `1` element when its' parent
+  /// (element with level `0`) does not exixt (is not fetched).
   ///
   /// By default, all entries have level set to `0`.
   final int level;
@@ -176,20 +176,20 @@ class StorageEntry<T, S extends Storage<T>> {
       if (needsElementsSync) {
         _logsSink.add(StorageEntryLog(
           this.name,
-          "Syncing elements with network...",
+          'Syncing elements with network...',
         ));
         await _syncElementsWithNetwork();
 
         _logsSink.add(StorageEntryLog(
           this.name,
-          "Elements sync completed.",
+          'Elements sync completed.',
         ));
       }
 
       if (canFetch && !needsElementsSync) {
         _logsSink.add(StorageEntryLog(
           this.name,
-          "Fetching elements from the network...",
+          'Fetching elements from the network...',
         ));
 
         final cells = await _fetchAllElementsFromNetwork();
@@ -197,7 +197,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
         _logsSink.add(StorageEntryLog(
           this.name,
-          "Elements fetched: count=${cells?.length}.",
+          'Elements fetched: count=${cells?.length}.',
         ));
 
         /// If cells are null, current cells will not be replaced.
@@ -219,7 +219,7 @@ class StorageEntry<T, S extends Storage<T>> {
     } on Exception catch (err, stackTrace) {
       _logsSink.add(StorageEntryError(
         this.name,
-        "Syncing elements with network...",
+        'Syncing elements with network...',
         error: err,
         stackTrace: stackTrace,
       ));
@@ -230,7 +230,7 @@ class StorageEntry<T, S extends Storage<T>> {
         final fetchDelayDuration = _fetchIndicator.delay();
         _logsSink.add(StorageEntryFetchDelayed(
           this.name,
-          "Syncing elements with network...",
+          'Syncing elements with network...',
           duration: fetchDelayDuration,
           delayedTo: _fetchIndicator.delayedTo,
         ));
@@ -244,14 +244,14 @@ class StorageEntry<T, S extends Storage<T>> {
   Future<void> refetch() async {
     _logsSink.add(StorageEntryLog(
       this.name,
-      "Marked the entry as refetch is needed.",
+      'Marked the entry as refetch is needed.',
     ));
     _fetchIndicator.reset(needSync: true);
     await requestNetworkSync();
   }
 
   Future<void> _syncElementsWithNetwork() async {
-    List<ExceptionDetail> errors = [];
+    final List<ExceptionDetail> errors = [];
 
     for (final cell in cellsReadyToSync) {
       /// end task when network is not available
@@ -264,8 +264,8 @@ class StorageEntry<T, S extends Storage<T>> {
             _logsSink.add(CellSyncAction(
               this.name,
               cell.id.hexString,
-              "Calling onCreate network callback for "
-              "element with id=${cell.id.hexString}",
+              'Calling onCreate network callback for '
+              'element with id=${cell.id.hexString}',
               action: cell.actionNeeded,
             ));
 
@@ -277,8 +277,8 @@ class StorageEntry<T, S extends Storage<T>> {
             _logsSink.add(CellSyncAction(
               this.name,
               cell.id.hexString,
-              "Calling onUpdate network callback for "
-              "element with id=${cell.id.hexString}",
+              'Calling onUpdate network callback for '
+              'element with id=${cell.id.hexString}',
               action: cell.actionNeeded,
             ));
 
@@ -293,8 +293,8 @@ class StorageEntry<T, S extends Storage<T>> {
             _logsSink.add(CellSyncAction(
               this.name,
               cell.id.hexString,
-              "Calling onDelete network callback for "
-              "element with id=${cell.id.hexString}",
+              'Calling onDelete network callback for '
+              'element with id=${cell.id.hexString}',
               action: cell.actionNeeded,
             ));
 
@@ -309,8 +309,8 @@ class StorageEntry<T, S extends Storage<T>> {
             _logsSink.add(CellSyncActionWarning(
               this.name,
               cell.id.hexString,
-              "No action is required for cell with "
-              "id=${cell.id.hexString}. Skipping...",
+              'No action is required for cell with '
+              'id=${cell.id.hexString}. Skipping...',
               action: cell.actionNeeded,
             ));
             break;
@@ -318,22 +318,22 @@ class StorageEntry<T, S extends Storage<T>> {
             _logsSink.add(CellSyncActionWarning(
               this.name,
               cell.id.hexString,
-              "Not supported sync action (${cell.actionNeeded}) for cell "
-              "with id=${cell.id.hexString}. Skipping...",
+              'Not supported sync action (${cell.actionNeeded}) for cell '
+              'with id=${cell.id.hexString}. Skipping...',
               action: cell.actionNeeded,
             ));
             break;
         }
 
         if (newElement != null) {
-          // If newElement returned from onUpdate or onCreate functions is not null,
-          // cell element will be replaced with the new one.
+          // If newElement returned from onUpdate or onCreate functions
+          // is not null, cell element will be replaced with the new one.
           cell._element = newElement;
           _logsSink.add(CellInfo(
             this.name,
             cell.id.hexString,
-            "New element received from the network for cell "
-            "with id=${cell.id.hexString}. Updated.",
+            'New element received from the network for cell '
+            'with id=${cell.id.hexString}. Updated.',
           ));
         }
 
@@ -343,7 +343,7 @@ class StorageEntry<T, S extends Storage<T>> {
         _logsSink.add(CellInfo(
           this.name,
           cell.id.hexString,
-          "Cell with id=${cell.id.hexString} synced successfully.",
+          'Cell with id=${cell.id.hexString} synced successfully.',
         ));
 
         // synced cell should be removed from cells to sync.
@@ -353,14 +353,15 @@ class StorageEntry<T, S extends Storage<T>> {
           // deleted celll should be removed from the storage
           await storage.deleteCell(cell);
         } else {
-          // Changes were made for current cell. It should be synced with storage.
+          // Changes were made for current cell. It should be
+          // synced with storage.
           await storage.writeCell(cell);
         }
       } on Exception catch (err, stackTrace) {
         _logsSink.add(CellSyncActionError(
           this.name,
           cell.id.hexString,
-          "Exception caught during cell sync (cell id=${cell.id.hexString}).",
+          'Exception caught during cell sync (cell id=${cell.id.hexString}).',
           action: cell.actionNeeded,
           error: err,
           stackTrace: stackTrace,
@@ -374,7 +375,8 @@ class StorageEntry<T, S extends Storage<T>> {
         _logsSink.add(CellSyncDelayed(
           this.name,
           cell.id.hexString,
-          "Sync for cell with id=${cell.id.hexString} delayed for ${delay.inMilliseconds}ms",
+          'Sync for cell with id=${cell.id.hexString} delayed '
+          'for ${delay.inMilliseconds}ms',
           delayedTo: cell.syncDelayedTo,
           duration: delay,
         ));
@@ -429,7 +431,7 @@ class StorageEntry<T, S extends Storage<T>> {
   Future<void> clear() async {
     _logsSink.add(StorageEntryInfo(
       name,
-      "Clearing entry with name=\"$name\"...",
+      'Clearing entry with name=\"$name\"...',
     ));
 
     /// Wait for ongoing sync task
@@ -441,7 +443,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
     _logsSink.add(StorageEntryInfo(
       name,
-      "Entry with name=\"$name\" cleared.",
+      'Entry with name=\"$name\" cleared.',
     ));
   }
 
@@ -510,7 +512,7 @@ class StorageEntry<T, S extends Storage<T>> {
     final isCellAlreadyInCellsToSync = cellIndex >= 0;
 
     if (isCellAlreadyInCellsToSync) {
-      throw StateError("Provided StorageCell is already queued for sync.");
+      throw StateError('Provided StorageCell is already queued for sync.');
     }
 
     cell.markAsSynced();

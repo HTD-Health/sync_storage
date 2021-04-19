@@ -8,21 +8,23 @@ import 'package:test/test.dart';
 import 'data.dart';
 
 class HasElementValue extends CustomMatcher {
-  HasElementValue(matcher) : super("Storage with id that is", "id", matcher);
-  int featureValueOf(actual) => (actual as TestElement).value;
+  HasElementValue(dynamic matcher)
+      : super('Storage with id that is', 'id', matcher);
+  @override
+  int featureValueOf(dynamic actual) => (actual as TestElement).value;
 }
 
 void main() {
   group('SyncStorage', () {
-    final boxName = 'BOX_NAME';
+    const boxName = 'BOX_NAME';
 
     final delaysBeforeNextAttempt = <Duration>[
-      Duration(microseconds: 0),
-      Duration(microseconds: 0),
-      Duration(microseconds: 0),
-      Duration(microseconds: 0),
-      Duration(microseconds: 0),
-      Duration(microseconds: 0),
+      const Duration(microseconds: 0),
+      const Duration(microseconds: 0),
+      const Duration(microseconds: 0),
+      const Duration(microseconds: 0),
+      const Duration(microseconds: 0),
+      const Duration(microseconds: 0),
     ];
     SyncStorage syncStorage;
     HiveStorageMock<TestElement> storage;
@@ -76,10 +78,10 @@ void main() {
     });
 
     test(
-        'setElements removes all ements that neeeds sync and do not cause network sync',
-        () async {
-      entry.createElement(TestElement(20));
-      entry.createElement(TestElement(21));
+        'setElements removes all ements that neeeds '
+        'sync and do not cause network sync', () async {
+      entry.createElement(const TestElement(20));
+      entry.createElement(const TestElement(21));
       expect(entry.cellsToSync, hasLength(2));
       await entry.setElements([
         for (int i = 0; i < 10; i++) TestElement(i),
@@ -102,7 +104,7 @@ void main() {
       expect(cells.where((cell) => cell.needsNetworkSync).isEmpty, isTrue);
 
       final cell = cells.first;
-      cell.updateElement(TestElement(12));
+      cell.updateElement(const TestElement(12));
       expect(cell.needsNetworkSync, isTrue);
       await entry.updateCell(cell);
 
@@ -158,7 +160,7 @@ void main() {
     test('Update works correctly', () async {
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
 
-      final updatedTestElement = const TestElement(200);
+      const updatedTestElement = TestElement(200);
 
       final cells = await storage.readAllCells();
 
@@ -206,13 +208,13 @@ void main() {
         /// wait for network changes to take effect
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        final newElement = const TestElement(999);
+        const newElement = TestElement(999);
         expect(entry.cellsToSync, hasLength(0));
         final storageCell = await entry.createElement(newElement);
         expect(storageCell.element.value, newElement.value);
         expect(entry.cellsToSync, hasLength(1));
 
-        final updatedElement = const TestElement(1000);
+        const updatedElement = TestElement(1000);
         storageCell.updateElement(updatedElement);
         await entry.updateCell(storageCell);
         expect(storageCell.element.value, updatedElement.value);
@@ -302,7 +304,7 @@ void main() {
           expect(cell.needsNetworkSync, isTrue);
           expect(cell.isReadyForSync, isFalse);
 
-          await Future.delayed(
+          await Future<void>.delayed(
             delaysBeforeNextAttempt[cell.networkSyncAttemptsCount],
           );
           await syncStorage.syncEntriesWithNetwork();
@@ -385,7 +387,7 @@ void main() {
         expect(cells1, hasLength(0));
         expect(cells2, hasLength(0));
 
-        final newElement = const TestElement(999);
+        const newElement = TestElement(999);
         final cell = await entry1.createElement(newElement);
         verify(networkCallbacks.onCreate(newElement)).called(1);
 
@@ -567,8 +569,8 @@ void main() {
         expect(entry.storage.config.lastFetch, isNull);
 
         /// Create elements when offline.
-        final newElement1 = const TestElement(10);
-        final newElement2 = const TestElement(11);
+        const newElement1 = TestElement(10);
+        const newElement2 = TestElement(11);
         await entry.createElement(newElement1);
         await entry.createElement(newElement2);
 

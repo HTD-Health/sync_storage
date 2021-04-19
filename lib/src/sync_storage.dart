@@ -17,7 +17,7 @@ void debugModePrint(String log, {bool enabled = true}) {
   assert((() {
     if (enabled) print(log);
     return true;
-  })());
+  })(), 'Debug mode print');
 }
 
 class SyncStorage {
@@ -83,10 +83,10 @@ class SyncStorage {
   SyncStorage({
     @required this.networkAvailabilityService,
     this.debug = false,
-  }) {
-    assert(
-        networkAvailabilityService != null, 'networkService cannot be null.');
-
+  }) : assert(
+          networkAvailabilityService != null,
+          'networkService cannot be null.',
+        ) {
     _networkNotifier.value = networkAvailabilityService.isConnected ?? true;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
@@ -94,7 +94,7 @@ class SyncStorage {
 
     if (debug) {
       _logsStreamController.stream.listen((event) {
-        print("[${event.source}] ${event.message}");
+        print('[${event.source}] ${event.message}');
       });
     }
   }
@@ -105,7 +105,7 @@ class SyncStorage {
       if (networkAvailable) {
         /// This sync request is triggered internally, so it is
         /// not possible to catch error by the user.
-        syncEntriesWithNetwork().catchError((_) {});
+        syncEntriesWithNetwork().catchError((dynamic _) {});
       }
     }
   }
@@ -113,7 +113,7 @@ class SyncStorage {
   Future<void> initialize() => Hive.initFlutter();
 
   Future<void> _syncEntriesWithNetwork() async {
-    sortEntriesByLevelAscending(StorageEntry a, StorageEntry b) =>
+    int sortEntriesByLevelAscending(StorageEntry a, StorageEntry b) =>
         a.level.compareTo(b.level);
 
     final sortedEntriesToSync = entriesToSync
@@ -178,7 +178,9 @@ class SyncStorage {
   /// Sync all entries with network when available.
   Future<void> syncEntriesWithNetwork() async {
     _logsStreamController.sink.add(SyncStorageInfo(
-        'Requesting entries sync. Registered entries to sync: ${entriesToSync.length}.'));
+      'Requesting entries sync. Registered entries '
+      'to sync: ${entriesToSync.length}.',
+    ));
 
     /// If network not available or already syncing
     /// and return current sync task future if available.

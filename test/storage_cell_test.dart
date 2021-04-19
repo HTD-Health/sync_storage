@@ -6,8 +6,8 @@ import 'data.dart';
 
 void main() {
   group('StorageCell', () {
-    test("Instantiate correctly with default constructor", () {
-      final cell = StorageCell(element: TestElement(1));
+    test('Instantiate correctly with default constructor', () {
+      final cell = StorageCell(element: const TestElement(1));
       expect(cell.actionNeeded, equals(SyncAction.create));
       expect(cell.createdAt, isA<DateTime>());
       expect(cell.updatedAt, isNull);
@@ -22,8 +22,8 @@ void main() {
       expect(cell.wasSynced, isFalse);
     });
 
-    test("Instantiate correctly with synced constructor", () {
-      final cell = StorageCell.synced(element: TestElement(1));
+    test('Instantiate correctly with synced constructor', () {
+      final cell = StorageCell.synced(element: const TestElement(1));
       expect(cell.actionNeeded, equals(SyncAction.none));
       expect(cell.createdAt, isA<DateTime>());
       expect(cell.lastSync, equals(cell.createdAt));
@@ -38,8 +38,8 @@ void main() {
       expect(cell.wasSynced, isTrue);
     });
 
-    test("Copy method works correctly", () {
-      final cell = StorageCell(element: TestElement(1));
+    test('Copy method works correctly', () {
+      final cell = StorageCell(element: const TestElement(1));
       final copiedCell = cell.copy();
 
       expect(cell.runtimeType, equals(copiedCell.runtimeType));
@@ -62,9 +62,9 @@ void main() {
       expect(copiedCell.actionNeeded, equals(cell.actionNeeded));
     });
 
-    group("Delay works correctly", () {
-      test("with default delay function", () async {
-        final cell = StorageCell(element: TestElement(1));
+    group('Delay works correctly', () {
+      test('with default delay function', () async {
+        final cell = StorageCell(element: const TestElement(1));
         expect(cell.isDelayed, isFalse);
         expect(cell.syncDelayedTo, isNull);
         expect(cell.needsNetworkSync, isTrue);
@@ -78,7 +78,7 @@ void main() {
         expect(cell.needsNetworkSync, isTrue);
         expect(cell.isReadyForSync, isFalse);
 
-        await Future.delayed(Duration(milliseconds: 1200));
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
 
         expect(cell.isDelayed, isFalse);
         expect(cell.syncDelayedTo, isNotNull);
@@ -86,15 +86,15 @@ void main() {
         expect(cell.isReadyForSync, isTrue);
       });
 
-      test("cannot delay already delayed cell", () async {
-        final cell = StorageCell(element: TestElement(1));
+      test('cannot delay already delayed cell', () async {
+        final cell = StorageCell(element: const TestElement(1));
         cell.registerSyncAttempt(
             getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
         expect(cell.registerSyncAttempt, throwsA(isA<StateError>()));
       });
 
-      test("with custom delay function", () async {
-        final cell = StorageCell(element: TestElement(1));
+      test('with custom delay function', () async {
+        final cell = StorageCell(element: const TestElement(1));
         expect(cell.syncDelayedTo, isNull);
 
         while (
@@ -113,7 +113,7 @@ void main() {
           expect(cell.isReadyForSync, isFalse);
           expect(cell.actionNeeded, SyncAction.create);
 
-          await Future.delayed(Duration(milliseconds: 150));
+          await Future<void>.delayed(const Duration(milliseconds: 150));
         }
 
         cell.registerSyncAttempt(
@@ -129,8 +129,8 @@ void main() {
       });
     });
 
-    test("Serialization works correctly", () async {
-      final cell = StorageCell.synced(element: TestElement(1));
+    test('Serialization works correctly', () async {
+      final cell = StorageCell.synced(element: const TestElement(1));
 
       final jsonEncodedCell = cell.toJson(const TestElementSerializer());
       final jsonDecodedCell =
@@ -156,14 +156,14 @@ void main() {
     });
 
     test(
-        "Updating cell that was not created on the network "
-        "will still require create action.", () {
-      final element1 = TestElement(1);
+        'Updating cell that was not created on the network '
+        'will still require create action.', () {
+      const element1 = TestElement(1);
       final cell = StorageCell(element: element1);
       expect(cell.actionNeeded, equals(SyncAction.create));
       expect(cell.oldElement, isNull);
 
-      final element2 = TestElement(2);
+      const element2 = TestElement(2);
       cell.updateElement(element2);
 
       expect(cell.actionNeeded, equals(SyncAction.create));
@@ -171,22 +171,22 @@ void main() {
     });
 
     test(
-        "Updating cell that was not created on the network "
-        "will still require create action.", () {
-      final element1 = TestElement(1);
+        'Updating cell that was not created on the network '
+        'will still require create action.', () {
+      const element1 = TestElement(1);
       final cell = StorageCell(element: element1);
       expect(cell.actionNeeded, equals(SyncAction.create));
       expect(cell.oldElement, isNull);
 
-      final element2 = TestElement(2);
+      const element2 = TestElement(2);
       cell.updateElement(element2);
 
       expect(cell.actionNeeded, equals(SyncAction.create));
       expect(cell.oldElement, equals(element1));
     });
 
-    test("markAsSynced method works correctly", () {
-      final cell = StorageCell(element: TestElement(1));
+    test('markAsSynced method works correctly', () {
+      final cell = StorageCell(element: const TestElement(1));
       expect(cell.actionNeeded, equals(SyncAction.create));
       expect(cell.needsNetworkSync, isTrue);
       expect(cell.wasSynced, isFalse);
@@ -199,9 +199,9 @@ void main() {
       expect(cell.lastSync, isNotNull);
     });
 
-    group("cell deletion", () {
-      test("works correctly for a new cell", () {
-        final element1 = TestElement(1);
+    group('cell deletion', () {
+      test('works correctly for a new cell', () {
+        const element1 = TestElement(1);
         final cell = StorageCell(element: element1);
         expect(cell.actionNeeded, equals(SyncAction.create));
         expect(cell.deleted, isFalse);
@@ -213,12 +213,12 @@ void main() {
         expect(cell.actionNeeded, equals(SyncAction.delete));
       });
 
-      test("works correctly for updated cell", () {
-        final cell = StorageCell(element: TestElement(1));
+      test('works correctly for updated cell', () {
+        final cell = StorageCell(element: const TestElement(1));
         cell.markAsSynced();
         expect(cell.actionNeeded, equals(SyncAction.none));
 
-        cell.updateElement(TestElement(2));
+        cell.updateElement(const TestElement(2));
         expect(cell.actionNeeded, equals(SyncAction.update));
 
         cell.markAsDeleted();
@@ -228,9 +228,9 @@ void main() {
       });
     });
 
-    group("cell update", () {
-      test("Update method works correctly", () {
-        final element1 = TestElement(1);
+    group('cell update', () {
+      test('Update method works correctly', () {
+        const element1 = TestElement(1);
         final cell = StorageCell(element: element1);
         expect(cell.actionNeeded, equals(SyncAction.create));
         expect(cell.oldElement, isNull);
@@ -239,29 +239,29 @@ void main() {
 
         expect(cell.actionNeeded, equals(SyncAction.none));
 
-        final element2 = TestElement(2);
+        const element2 = TestElement(2);
         cell.updateElement(element2);
 
         expect(cell.actionNeeded, equals(SyncAction.update));
         expect(cell.oldElement, equals(element1));
       });
 
-      test("Cannot update deleted cell", () {
-        final cell = StorageCell(element: TestElement(1));
+      test('Cannot update deleted cell', () {
+        final cell = StorageCell(element: const TestElement(1));
         cell.markAsDeleted();
         expect(cell.actionNeeded, equals(SyncAction.delete));
         expect(cell.needsNetworkSync, isTrue);
 
         expect(
-          () => cell.updateElement(TestElement(2)),
+          () => cell.updateElement(const TestElement(2)),
           throwsA(isA<StateError>()),
         );
         expect(cell.actionNeeded, equals(SyncAction.delete));
         expect(cell.needsNetworkSync, isTrue);
       });
 
-      test("Cannot update element with itself.", () {
-        final element = TestElement(1);
+      test('Cannot update element with itself.', () {
+        const element = TestElement(1);
         final cell = StorageCell(element: element);
         expect(
           () => cell.updateElement(element),

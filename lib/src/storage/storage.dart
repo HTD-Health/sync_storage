@@ -9,7 +9,8 @@ abstract class Storage<T> {
 
   StorageConfig get config;
 
-  /// This method is called together with [SyncStorage] [initializeEntry] method.
+  /// This method is called together with [SyncStorage] [initializeEntry]
+  /// method.
   ///
   /// This is the best place to initialize memory, open files, etc.
   @mustCallSuper
@@ -39,7 +40,8 @@ abstract class Storage<T> {
   /// Delete storage.
   ///
   /// In opposite to [clear], this method will remove files/tables related
-  /// with current storage. After this action [create] should be called before next use.
+  /// with current storage. After this action [create] should be called
+  /// before next use.
   Future<void> delete();
 
   /// Called together with [SyncStorage] [dispose] method.

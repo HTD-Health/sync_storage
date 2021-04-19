@@ -42,12 +42,13 @@ class StorageCell<T> {
 
   /// Register failed network synchronization.
   ///
-  /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is already reached.
+  /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is
+  /// already reached.
   Duration registerSyncAttempt({
     @required DelayDurationGetter getDelayBeforeNextAttempt,
   }) {
     if (isDelayed) {
-      throw StateError("Cannot register sync attempt for delayed cell.");
+      throw StateError('Cannot register sync attempt for delayed cell.');
     }
 
     final attempt = _networkSyncAttemptsCount++;
@@ -213,13 +214,13 @@ class StorageCell<T> {
   factory StorageCell.fromJson(String data, Serializer<T> serializer) {
     final dynamic decodedJson = json.decode(data);
 
-    final id = decodedJson['id'];
-    final element = decodedJson['element'];
-    final oldElement = decodedJson['oldElement'];
-    final createdAt = decodedJson['createdAt'];
-    final updatedAt = decodedJson['updatedAt'];
-    final lastSync = decodedJson['lastSync'];
-    final syncDelayedTo = decodedJson['syncDelayedTo'];
+    final dynamic id = decodedJson['id'];
+    final dynamic element = decodedJson['element'];
+    final dynamic oldElement = decodedJson['oldElement'];
+    final dynamic createdAt = decodedJson['createdAt'];
+    final dynamic updatedAt = decodedJson['updatedAt'];
+    final dynamic lastSync = decodedJson['lastSync'];
+    final dynamic syncDelayedTo = decodedJson['syncDelayedTo'];
 
     return StorageCell(
       id: id == null

@@ -11,7 +11,7 @@ import 'data.dart';
 void main() {
   group('Entries levels', () {
     const List<int> levels = [4, 2, 1, 2, 0];
-    List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries = [];
+    final entries = <StorageEntry<TestElement, HiveStorageMock<TestElement>>>[];
 
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
@@ -76,44 +76,38 @@ void main() {
     test(
         'Do not sync cells that with larger levels '
         'when exception occured in lower level', () async {
-      try {
-        final errorEntry = getEntryWithLevel(2);
-        when(errorEntry.networkCallbacks.onCreate(any))
-            .thenThrow(SyncException([]));
+      final errorEntry = getEntryWithLevel(2);
+      when(errorEntry.networkCallbacks.onCreate(any))
+          .thenThrow(SyncException([]));
 
-        for (final entry in entries) {
-          final newElement = const TestElement(1);
-          await entry.createElement(newElement);
-        }
-
-        for (final entry in entries) {
-          expect(entry.needsElementsSync, isTrue);
-        }
-
-        await networkAvailabilityService.goOnline();
-        // wait for current sync end
-        await syncStorage.syncEntriesWithNetwork();
-
-        int level2ElementsToSyncCount = 0;
-        for (final entry in entries) {
-          final hasElementsToSync = entry.cellsToSync.isNotEmpty;
-
-          // print("level ${entry.level}:  hasElementsToSync=$hasElementsToSync");
-
-          if (entry.level == 2 && hasElementsToSync) {
-            level2ElementsToSyncCount++;
-          } else if (entry.level >= 3) {
-            expect(hasElementsToSync, isTrue);
-          } else {
-            expect(hasElementsToSync, isFalse);
-          }
-        }
-
-        /// Only one entry with level 2 is not synced
-        expect(level2ElementsToSyncCount, equals(1));
-      } catch (err) {
-        print("ERR: $err");
+      for (final entry in entries) {
+        const newElement = TestElement(1);
+        await entry.createElement(newElement);
       }
+
+      for (final entry in entries) {
+        expect(entry.needsElementsSync, isTrue);
+      }
+
+      await networkAvailabilityService.goOnline();
+      // wait for current sync end
+      await syncStorage.syncEntriesWithNetwork();
+
+      int level2ElementsToSyncCount = 0;
+      for (final entry in entries) {
+        final hasElementsToSync = entry.cellsToSync.isNotEmpty;
+
+        if (entry.level == 2 && hasElementsToSync) {
+          level2ElementsToSyncCount++;
+        } else if (entry.level >= 3) {
+          expect(hasElementsToSync, isTrue);
+        } else {
+          expect(hasElementsToSync, isFalse);
+        }
+      }
+
+      /// Only one entry with level 2 is not synced
+      expect(level2ElementsToSyncCount, equals(1));
     });
 
     test(
@@ -126,10 +120,10 @@ void main() {
 
       for (final entry in entries) {
         when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
-              TestElement(1),
-              TestElement(2),
-              TestElement(3),
-              TestElement(4),
+              const TestElement(1),
+              const TestElement(2),
+              const TestElement(3),
+              const TestElement(4),
             ]);
       }
 
@@ -162,10 +156,10 @@ void main() {
       expect(notFetchedLevel2Count, equals(1));
 
       when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
-            TestElement(1),
-            TestElement(2),
-            TestElement(3),
-            TestElement(4),
+            const TestElement(1),
+            const TestElement(2),
+            const TestElement(3),
+            const TestElement(4),
           ]);
 
       // Wait for fetch avaiability if needed.

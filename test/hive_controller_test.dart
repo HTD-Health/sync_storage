@@ -6,9 +6,9 @@ import 'data.dart';
 
 void main() {
   group('HiveStorageController', () {
-    final storageKey = 'CONFIG';
-    final box1Name = 'box1';
-    final box2Name = 'box2';
+    const storageKey = 'CONFIG';
+    const box1Name = 'box1';
+    const box2Name = 'box2';
 
     HiveStorageControllerMock<TestElement> controller;
     HiveStorage<TestElement> hiveStorage1;

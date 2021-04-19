@@ -33,7 +33,10 @@ class HiveStorageController<T> {
   }
 
   HiveStorageController(this.boxName, this.serializer)
-      : assert(boxName != null && serializer != null);
+      : assert(
+          boxName != null && serializer != null,
+          'boxName and serializer cannot be null',
+        );
 
   Future<void> initialize() async {
     if (initialized) throw StateError('Controller is already initialized.');
@@ -156,8 +159,9 @@ class HiveStorage<T> extends Storage<T> {
 
   @override
   Future<List<StorageCell<T>>> readAllCells() async {
-    final values = await Future.wait(
-        box.keys.where((key) => key != _configKey).map((key) => box.get(key)));
+    final values = await Future.wait(box.keys
+        .where((dynamic key) => key != _configKey)
+        .map((dynamic key) => box.get(key)));
 
     return values
         .map((value) => StorageCell<T>.fromJson(value, serializer))
@@ -170,6 +174,7 @@ class HiveStorage<T> extends Storage<T> {
     _config = StorageConfig.fromJson(configData);
   }
 
+  @override
   Future<void> writeConfig(StorageConfig config) async {
     ArgumentError.checkNotNull(config, 'config');
 
