@@ -21,6 +21,9 @@ void debugModePrint(String log, {bool enabled = true}) {
 }
 
 class SyncStorage {
+  bool _disposed = false;
+  bool get disposed => _disposed;
+
   /// Returns last sync date
   DateTime get lastSync => entries.reduce((value, element) {
         if (element.lastSync == null) {
@@ -216,19 +219,22 @@ class SyncStorage {
     ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
     DelayDurationGetter getDelayBeforeNextAttempt,
   }) async {
+    if (disposed) {
+      throw StateError('Cannot register entry. $runtimeType was disposed.');
+    }
+
+    _logsStreamController.sink
+        .add(SyncStorageInfo('Registering entry with name="$name"'));
+
+    if (getEntryWithName(name) != null) {
+      throw ArgumentError.value(
+        name,
+        'name',
+        'Entry with provided name is already registred.\n'
+            'Instead use "getRegisteredEntry" method.',
+      );
+    }
     try {
-      _logsStreamController.sink
-          .add(SyncStorageInfo('Registering entry with name="$name"'));
-
-      if (getEntryWithName(name) != null) {
-        throw ArgumentError.value(
-          name,
-          'name',
-          'Entry with provided name is already registred.\n'
-              'Instead use "getRegisteredEntry" method.',
-        );
-      }
-
       final entry = StorageEntry<T, S>(
         debug: debug,
         name: name,
@@ -266,7 +272,9 @@ class SyncStorage {
 
   Future<void> disposeEntryWithName(String name) async {
     final entry = getEntryWithName(name);
-    if (entry == null) return;
+    if (entry == null) {
+      throw StateError('Entry with provided name=\"$name\" is not registered.');
+    }
 
     _entries.remove(entry);
     await entry.dispose();
@@ -281,6 +289,15 @@ class SyncStorage {
         orElse: () => null,
       );
 
+  Future<void> removeEntryWithName(String name) async {
+    final entry = getEntryWithName(name);
+    if (entry == null) {
+      throw StateError('Entry with provided name=\"$name\" is not registered.');
+    }
+    _entries.remove(entry);
+    await entry.dispose();
+  }
+
   @protected
   @visibleForTesting
   Future<void> disposeAllEntries() async {
@@ -291,16 +308,22 @@ class SyncStorage {
     }
   }
 
-  Future<void> dispose() async {
-    _networkNotifier.dispose();
-    _networkAvailabilitySubscription.cancel();
+  /// Dispose and remove all entries from the sync storage.
+  Future<void> clear() async {
     await disposeAllEntries();
-    _logsStreamController.close();
+    _entries.clear();
   }
 
-  /// Removes dispose and remove all entries from the sync storage.
-  void clear() {
-    disposeAllEntries();
-    _entries.clear();
+  Future<void> dispose() async {
+    if (disposed) {
+      throw StateError('Sync storage was already disposed');
+    }
+
+    _disposed = true;
+
+    await clear();
+    _networkNotifier.dispose();
+    _networkAvailabilitySubscription.cancel();
+    _logsStreamController.close();
   }
 }
