@@ -231,7 +231,7 @@ class SyncStorage {
     await entry.initialize();
     _entries.add(entry);
     _logsStreamController.sink.add(SyncStorageInfo(
-      ' Registered entry with name: "$name", '
+      'Registered entry with name: "$name", '
       'Elements to sync: ${entry.cellsToSync.length}.',
     ));
     // await syncEntriesWithNetwork();
