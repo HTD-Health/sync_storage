@@ -51,6 +51,7 @@ class SyncStorage {
   StreamSubscription<bool> _networkAvailabilitySubscription;
 
   bool get networkAvailable => _networkNotifier.value;
+  ValueNotifier<bool> get networkNotifier => _networkNotifier;
   final _networkNotifier = ValueNotifier<bool>(false);
 
   int get elementsToSyncCount =>
