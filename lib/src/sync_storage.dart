@@ -214,8 +214,8 @@ class SyncStorage {
       //? Errors should not be thrown when sync failed.
 
     } finally {
-      _networkSyncTask.complete();
       _progress.end();
+      _networkSyncTask.complete();
     }
   }
 

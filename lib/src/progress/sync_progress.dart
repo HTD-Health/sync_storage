@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 
@@ -7,7 +8,7 @@ class SyncProgressEvent {
   final int actionIndex;
   final int actionsCount;
 
-  double get progress => actionIndex / actionsCount;
+  double get progress => max(actionIndex, 0) / actionsCount;
 
   SyncProgressEvent({
     @required this.entryName,
@@ -55,7 +56,7 @@ class SyncProgress {
     }
 
     _currentEvent = SyncProgressEvent(
-      actionIndex: 0,
+      actionIndex: -1,
       actionsCount: actionsCount,
       entryName: entryName,
     );
