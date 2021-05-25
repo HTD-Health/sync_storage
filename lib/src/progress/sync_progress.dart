@@ -65,10 +65,11 @@ class SyncProgress {
   void progress({
     @required String entryName,
   }) {
-    _syncProgress.sink.add(_currentEvent.copyWith(
+    _currentEvent = _currentEvent.copyWith(
       entryName: entryName,
       actionIndex: _currentEvent.actionIndex + 1,
-    ));
+    );
+    _syncProgress.sink.add(_currentEvent);
   }
 
   void end() {
