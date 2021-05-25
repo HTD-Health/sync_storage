@@ -60,7 +60,7 @@ class SyncStorage {
 
   Completer<void> _networkSyncTask;
 
-  SyncProgress get progress => _progress;
+  Stream<SyncProgressEvent> get progress => _progress.stream;
   final _progress = SyncProgress();
 
   /// Whether [SyncStorage] is syncing entries with network.
