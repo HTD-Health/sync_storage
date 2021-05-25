@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:meta/meta.dart';
+import 'package:sync_storage/src/progress/sync_progress.dart';
 import 'package:sync_storage/src/services/network_availability_service.dart';
 import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
@@ -37,7 +38,7 @@ class SyncStorage {
             return value;
           }
         }
-      }).lastSync;
+      })?.lastSync;
 
   final _logsStreamController = StreamController<SyncStorageLog>.broadcast();
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
@@ -58,6 +59,9 @@ class SyncStorage {
       entries.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
 
   Completer<void> _networkSyncTask;
+
+  SyncProgress get progress => _progress;
+  final _progress = SyncProgress();
 
   /// Whether [SyncStorage] is syncing entries with network.
   bool get isSyncing =>
@@ -135,6 +139,7 @@ class SyncStorage {
         try {
           _logsStreamController.sink
               .add(SyncStorageInfo('Syncing entry with name="${entry.name}".'));
+          _progress.progress(entryName: entry.name);
 
           if (entry.isFetchDelayed && !entry.canFetch) {
             errorLevel = entry.level;
@@ -201,6 +206,7 @@ class SyncStorage {
     /// If already syncing return current sync task future if available.
     if (isSyncing) return _networkSyncTask?.future;
 
+    _progress.start(entryName: null, actionsCount: entriesToSync.length);
     _networkSyncTask = Completer<void>();
     try {
       await _syncEntriesWithNetwork();
@@ -209,6 +215,7 @@ class SyncStorage {
 
     } finally {
       _networkSyncTask.complete();
+      _progress.end();
     }
   }
 
@@ -324,6 +331,7 @@ class SyncStorage {
     _disposed = true;
 
     await clear();
+    _progress.dispose();
     _networkNotifier.dispose();
     _networkAvailabilitySubscription.cancel();
     _logsStreamController.close();
