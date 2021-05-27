@@ -64,21 +64,14 @@ class SyncProgress {
     send();
   }
 
-  void progress({
-    String entryName,
-  }) {
-    _currentEvent = _currentEvent.copyWith(
-      entryName: entryName,
-      actionIndex: _currentEvent.actionIndex + 1,
-    );
-    send();
-  }
-
-  void set({
+  void update({
     String entryName,
     int actionIndex,
     int actionsCount,
   }) {
+    if (!isStarted) {
+      throw StateError('Cannot update $runtimeType. Not started.');
+    }
     _currentEvent = _currentEvent.copyWith(
       actionIndex: actionIndex,
       actionsCount: actionsCount,
@@ -88,6 +81,9 @@ class SyncProgress {
   }
 
   void end() {
+    if (!isStarted) {
+      throw StateError('Cannot end $runtimeType. Not started.');
+    }
     _syncProgress.sink.add(_currentEvent.copyWith(
       entryName: null,
       actionIndex: _currentEvent.actionsCount,
