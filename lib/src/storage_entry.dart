@@ -248,6 +248,15 @@ class StorageEntry<T, S extends Storage<T>> {
     await requestNetworkSync();
   }
 
+  Future<void> reset() async {
+    _logsSink.add(StorageEntryInfo(
+      this.name,
+      'Entry reset performed.',
+    ));
+    await clear();
+    _fetchIndicator.reset(needSync: true);
+  }
+
   Future<void> _syncElementsWithNetwork() async {
     final List<ExceptionDetail> errors = [];
 
