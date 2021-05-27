@@ -45,6 +45,7 @@ class SyncProgress {
   bool get isStarted => _currentEvent != null;
 
   SyncProgressEvent _currentEvent;
+  SyncProgressEvent get currentEvent => _currentEvent;
 
   void start({
     @required String entryName,
@@ -60,17 +61,30 @@ class SyncProgress {
       actionsCount: actionsCount,
       entryName: entryName,
     );
-    _syncProgress.sink.add(_currentEvent);
+    send();
   }
 
   void progress({
-    @required String entryName,
+    String entryName,
   }) {
     _currentEvent = _currentEvent.copyWith(
       entryName: entryName,
       actionIndex: _currentEvent.actionIndex + 1,
     );
-    _syncProgress.sink.add(_currentEvent);
+    send();
+  }
+
+  void set({
+    String entryName,
+    int actionIndex,
+    int actionsCount,
+  }) {
+    _currentEvent = _currentEvent.copyWith(
+      actionIndex: actionIndex,
+      actionsCount: actionsCount,
+      entryName: entryName,
+    );
+    send();
   }
 
   void end() {
@@ -79,6 +93,12 @@ class SyncProgress {
       actionIndex: _currentEvent.actionsCount,
     ));
     _currentEvent = null;
+    send();
+  }
+
+  @visibleForTesting
+  void send() {
+    _syncProgress.sink.add(_currentEvent);
   }
 
   void dispose() {

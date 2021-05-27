@@ -175,6 +175,10 @@ class SyncStorage {
       /// If during sync network sync, new data were added.
       /// Sync it too.
       if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
+        final completedCount = _progress.currentEvent.actionIndex;
+        _progress.set(
+          actionsCount: entriesToSync.length + completedCount,
+        );
         await _syncEntriesWithNetwork();
       }
     } on SyncException catch (err, stackTrace) {
