@@ -257,6 +257,14 @@ class StorageEntry<T, S extends Storage<T>> {
     _fetchIndicator.reset(needSync: true);
   }
 
+  void markAsFetchNeeded() {
+    _logsSink.add(StorageEntryInfo(
+      this.name,
+      'Marked as fetch needed.',
+    ));
+    _fetchIndicator.reset(needSync: true);
+  }
+
   Future<void> _syncElementsWithNetwork() async {
     final List<ExceptionDetail> errors = [];
 
