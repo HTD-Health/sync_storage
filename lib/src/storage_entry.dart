@@ -245,6 +245,9 @@ class StorageEntry<T, S extends Storage<T>> {
       'Marked the entry as refetch is needed.',
     ));
     _fetchIndicator.reset(needSync: true);
+    await storage.writeConfig(storage.config.copyWith(
+      needsFetch: true,
+    ));
     await requestNetworkSync();
   }
 
@@ -255,14 +258,20 @@ class StorageEntry<T, S extends Storage<T>> {
     ));
     await clear();
     _fetchIndicator.reset(needSync: true);
+    await storage.writeConfig(storage.config.copyWith(
+      needsFetch: true,
+    ));
   }
 
-  void markAsFetchNeeded() {
+  Future<void> markAsFetchNeeded() async {
     _logsSink.add(StorageEntryInfo(
       this.name,
       'Marked as fetch needed.',
     ));
     _fetchIndicator.reset(needSync: true);
+    await storage.writeConfig(storage.config.copyWith(
+      needsFetch: true,
+    ));
   }
 
   Future<void> _syncElementsWithNetwork() async {
