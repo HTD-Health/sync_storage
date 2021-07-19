@@ -3,12 +3,26 @@ class ExceptionDetail {
   final StackTrace stackTrace;
 
   ExceptionDetail(this.exception, this.stackTrace);
+
+  @override
+  String toString() => '$exception\n$stackTrace';
 }
 
 class SyncException implements Exception {
   final List<ExceptionDetail> errors;
 
   SyncException(this.errors);
+
+  @override
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.write('$runtimeType:\n');
+    for (final error in errors) {
+      buffer.write(error.toString());
+      buffer.write('\n');
+    }
+    return buffer.toString();
+  }
 }
 
 class SyncLevelException extends SyncException {
