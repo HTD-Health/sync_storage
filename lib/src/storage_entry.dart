@@ -66,6 +66,8 @@ class StorageEntry<T, S extends Storage<T>> {
   final StreamSink<SyncStorageLog> _logsSink;
 
   DateTime get lastSync => storage.config?.lastSync;
+  DateTime get lastFetch => storage.config?.lastFetch;
+  bool get wasFetched => lastFetch != null;
 
   bool get networkAvailable => networkNotifier.value;
   final ValueNotifier<bool> networkNotifier;
