@@ -76,6 +76,11 @@ void main() {
     test(
         'Do not sync cells that with larger levels '
         'when exception occured in lower level', () async {
+      expect(syncStorage.isSyncBreakedOnLevel, isFalse);
+      expect(syncStorage.syncBreakedOnLevel, isNull);
+      expect(syncStorage.hasError, isFalse);
+      expect(syncStorage.ccurrentError, isNull);
+
       final errorEntry = getEntryWithLevel(2);
       when(errorEntry.networkCallbacks.onCreate(any))
           .thenThrow(SyncException([]));
@@ -108,6 +113,10 @@ void main() {
 
       /// Only one entry with level 2 is not synced
       expect(level2ElementsToSyncCount, equals(1));
+      expect(syncStorage.isSyncBreakedOnLevel, isTrue);
+      expect(syncStorage.syncBreakedOnLevel, equals(2));
+      expect(syncStorage.hasError, isTrue);
+      expect(syncStorage.ccurrentError, isA<SyncLevelException>());
     });
 
     test(
