@@ -26,7 +26,7 @@ class SyncStorage {
   int get syncBreakedOnLevel => _syncBreakedOnLevel;
   bool get isSyncBreakedOnLevel => _syncBreakedOnLevel != null;
   SyncException _currentError;
-  SyncException get ccurrentError => _currentError;
+  SyncException get currentError => _currentError;
   bool get hasError => _currentError != null;
 
   bool _disposed = false;

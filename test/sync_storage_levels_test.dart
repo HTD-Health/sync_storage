@@ -79,7 +79,7 @@ void main() {
       expect(syncStorage.isSyncBreakedOnLevel, isFalse);
       expect(syncStorage.syncBreakedOnLevel, isNull);
       expect(syncStorage.hasError, isFalse);
-      expect(syncStorage.ccurrentError, isNull);
+      expect(syncStorage.currentError, isNull);
 
       final errorEntry = getEntryWithLevel(2);
       when(errorEntry.networkCallbacks.onCreate(any))
@@ -116,7 +116,7 @@ void main() {
       expect(syncStorage.isSyncBreakedOnLevel, isTrue);
       expect(syncStorage.syncBreakedOnLevel, equals(2));
       expect(syncStorage.hasError, isTrue);
-      expect(syncStorage.ccurrentError, isA<SyncLevelException>());
+      expect(syncStorage.currentError, isA<SyncLevelException>());
     });
 
     test(
