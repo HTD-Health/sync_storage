@@ -22,13 +22,6 @@ void debugModePrint(String log, {bool enabled = true}) {
 }
 
 class SyncStorage {
-  int _syncBreakedOnLevel;
-  int get syncBreakedOnLevel => _syncBreakedOnLevel;
-  bool get isSyncBreakedOnLevel => _syncBreakedOnLevel != null;
-  SyncException _currentError;
-  SyncException get currentError => _currentError;
-  bool get hasError => _currentError != null;
-
   bool _disposed = false;
   bool get disposed => _disposed;
 
@@ -130,9 +123,6 @@ class SyncStorage {
   Future<void> initialize() => Hive.initFlutter();
 
   Future<void> _syncEntriesWithNetwork() async {
-    _syncBreakedOnLevel = null;
-    _currentError = null;
-
     int sortEntriesByLevelAscending(StorageEntry a, StorageEntry b) =>
         a.level.compareTo(b.level);
 
@@ -192,8 +182,6 @@ class SyncStorage {
         await _syncEntriesWithNetwork();
       }
     } on SyncException catch (err, stackTrace) {
-      _syncBreakedOnLevel = errorLevel;
-      _currentError = err;
       _logsStreamController.sink.add(SyncStorageWarning(
         'Breaking sync on level="$errorLevel".',
       ));
