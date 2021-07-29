@@ -1,19 +1,17 @@
 import 'dart:convert';
 
-import 'package:meta/meta.dart';
-
 class StorageConfig {
-  final DateTime lastFetch;
-  final DateTime lastSync;
-  final bool needsFetch;
+  final DateTime? lastFetch;
+  final DateTime? lastSync;
+  final bool? needsFetch;
 
   const StorageConfig({
-    @required this.lastSync,
-    @required this.lastFetch,
-    @required this.needsFetch,
+    required this.lastSync,
+    required this.lastFetch,
+    required this.needsFetch,
   });
 
-  factory StorageConfig.fromJson(String json) {
+  factory StorageConfig.fromJson(String? json) {
     if (json == null) {
       return const StorageConfig(
         needsFetch: true,
@@ -23,10 +21,10 @@ class StorageConfig {
     }
     final dynamic jsonMap = jsonDecode(json);
 
-    final DateTime lastFetch = jsonMap['lastFetch'] != null
+    final DateTime? lastFetch = jsonMap['lastFetch'] != null
         ? DateTime.tryParse(jsonMap['lastFetch'])
         : null;
-    final DateTime lastSync = jsonMap['lastSync'] != null
+    final DateTime? lastSync = jsonMap['lastSync'] != null
         ? DateTime.tryParse(jsonMap['lastSync'])
         : null;
 
@@ -50,9 +48,9 @@ class StorageConfig {
   }
 
   StorageConfig copyWith({
-    DateTime lastFetch,
-    DateTime lastSync,
-    bool needsFetch,
+    DateTime? lastFetch,
+    DateTime? lastSync,
+    bool? needsFetch,
   }) {
     return StorageConfig(
       lastFetch: lastFetch ?? this.lastFetch,

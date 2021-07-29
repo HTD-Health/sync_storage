@@ -58,26 +58,26 @@ class StorageEntry<T, S extends Storage<T>> {
   final int level;
   final S storage;
   final StorageNetworkCallbacks<T> networkCallbacks;
-  final OnCellSyncError<T> onCellSyncError;
-  final OnCellMaxAttemptReached<T> onCellMaxAttemptsReached;
+  final OnCellSyncError<T>? onCellSyncError;
+  final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
   final bool debug;
   final DelayDurationGetter getDelayBeforeNextAttempt;
-  final Future<void> Function() networkUpdateCallback;
+  final Future<void>? Function() networkUpdateCallback;
   final StreamSink<SyncStorageLog> _logsSink;
 
-  DateTime get lastSync => storage.config?.lastSync;
-  DateTime get lastFetch => storage.config?.lastFetch;
+  DateTime? get lastSync => storage.config.lastSync;
+  DateTime? get lastFetch => storage.config.lastFetch;
   bool get wasFetched => lastFetch != null;
 
-  bool get networkAvailable => networkNotifier.value;
-  final ValueNotifier<bool> networkNotifier;
+  bool get networkAvailable => networkNotifier!.value;
+  final ValueNotifier<bool>? networkNotifier;
 
-  Completer<void> _networkSyncTask;
+  Completer<void>? _networkSyncTask;
 
   final SyncIndicator _fetchIndicator;
-  DateTime get nextFetchDelayedTo => _fetchIndicator.delayedTo;
-  int get fetchAttempt => _fetchIndicator.attempt;
-  bool get needsFetch => _fetchIndicator.needSync;
+  DateTime? get nextFetchDelayedTo => _fetchIndicator.delayedTo;
+  int? get fetchAttempt => _fetchIndicator.attempt;
+  bool? get needsFetch => _fetchIndicator.needSync;
   bool get canFetch => _fetchIndicator.canSync;
   bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
 
@@ -97,9 +97,9 @@ class StorageEntry<T, S extends Storage<T>> {
   /// Whether [StorageEntry] is syncing elements with network.
 
   bool get isSyncing =>
-      _networkSyncTask != null && _networkSyncTask.isCompleted == false;
+      _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
-  List<StorageCell<T>> _cellsToSync = [];
+  List<StorageCell<T?>> _cellsToSync = [];
 
   /// return [StorageCell]s that are saved only in the local storage.
   List<StorageCell<T>> get cellsToSync => List.unmodifiable(_cellsToSync);
@@ -107,11 +107,11 @@ class StorageEntry<T, S extends Storage<T>> {
       _cellsToSync.where((cell) => cell.isReadyForSync).toList());
 
   StorageEntry({
-    @required this.name,
-    int level,
-    @required this.storage,
-    @required this.networkCallbacks,
-    @required this.networkUpdateCallback,
+    required this.name,
+    int? level,
+    required this.storage,
+    required this.networkCallbacks,
+    required this.networkUpdateCallback,
 
     /// called on every cell network sync error
     this.onCellSyncError,
@@ -124,11 +124,11 @@ class StorageEntry<T, S extends Storage<T>> {
 
     /// if true, logs are printed to the console
     this.debug = false,
-    @required StreamSink<SyncStorageLog> logsSink,
+    required StreamSink<SyncStorageLog> logsSink,
 
     /// Returns duration that will be used to delayed
     /// next sync attempt for cell.
-    DelayDurationGetter getDelayBeforeNextAttempt,
+    DelayDurationGetter? getDelayBeforeNextAttempt,
   })  : _logsSink = logsSink,
         getDelayBeforeNextAttempt =
             getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
@@ -139,7 +139,7 @@ class StorageEntry<T, S extends Storage<T>> {
           needSync: false,
         );
 
-  Future<List<StorageCell<T>>> _fetchAllElementsFromNetwork() async {
+  Future<List<StorageCell<T>>?> _fetchAllElementsFromNetwork() async {
     final data = await networkCallbacks.onFetch();
     if (data == null) {
       return null;
@@ -162,7 +162,7 @@ class StorageEntry<T, S extends Storage<T>> {
   /// Request network sync from sync_storage
   Future<void> requestNetworkSync() async {
     if (isSyncing) {
-      return _networkSyncTask.future;
+      return _networkSyncTask!.future;
     } else if (needsNetworkSync) {
       await networkUpdateCallback();
     }
@@ -170,7 +170,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
   /// Called externally by [SyncStorage]. Should not be called by user.
   Future<void> syncElementsWithNetwork() async {
-    if (isSyncing) return _networkSyncTask.future;
+    if (isSyncing) return _networkSyncTask!.future;
     _networkSyncTask = Completer<void>();
 
     try {
@@ -237,7 +237,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
       rethrow;
     } finally {
-      _networkSyncTask.complete();
+      _networkSyncTask!.complete();
     }
   }
 
@@ -284,7 +284,7 @@ class StorageEntry<T, S extends Storage<T>> {
       if (!networkAvailable) break;
 
       try {
-        T newElement;
+        T? newElement;
         switch (cell.actionNeeded) {
           case SyncAction.create:
             _logsSink.add(CellSyncAction(
@@ -310,7 +310,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
             /// Make UPDATE request
             newElement = await networkCallbacks.onUpdate(
-              cell.oldElement,
+              cell.oldElement!,
               cell.element,
             );
 

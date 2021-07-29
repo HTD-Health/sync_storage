@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/src/errors/errors.dart';
 import 'package:sync_storage/src/sync_storage.dart';
@@ -7,20 +8,23 @@ import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 
 import 'data.dart';
+import 'sync_storage_levels_test.mocks.dart';
 
+@GenerateMocks([StorageNetworkCallbacks])
 void main() {
   group('Entries levels', () {
     const List<int> levels = [4, 2, 1, 2, 0];
-    final entries = <StorageEntry<TestElement, HiveStorageMock<TestElement>>>[];
+    final entries =
+        <StorageEntry<TestElement, HiveStorageMock<TestElement>>?>[];
 
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
-    SyncStorage syncStorage;
+    late SyncStorage syncStorage;
 
-    StorageEntry<TestElement, HiveStorageMock<TestElement>> getEntryWithLevel(
+    StorageEntry<TestElement, HiveStorageMock<TestElement>>? getEntryWithLevel(
             int level) =>
         entries.firstWhere(
-          (element) => element.level == level,
+          (element) => element!.level == level,
           orElse: () => null,
         );
 
@@ -38,7 +42,11 @@ void main() {
           'sync_storage_levels_box$i',
           const TestElementSerializer(),
         );
-        final callbacks = StorageNetworkCallbacksMock<TestElement>();
+        final callbacks = MockStorageNetworkCallbacks<TestElement>();
+        when(callbacks.onCreate(any))
+            .thenAnswer((realInvocation) => Future.value(null));
+        when(callbacks.onFetch())
+            .thenAnswer((realInvocation) => Future.value([]));
         final entry = await syncStorage
             .registerEntry<TestElement, HiveStorageMock<TestElement>>(
           name: 'sync_storage_levels_box$i',
@@ -52,7 +60,7 @@ void main() {
       }
 
       Iterable<Future<void>> initializeEntries() =>
-          entries.map((e) => e.initialize());
+          entries.map((e) => e!.initialize());
 
       await Future.wait(initializeEntries());
     });
@@ -60,7 +68,7 @@ void main() {
     setUp(() async {
       await networkAvailabilityService.goOffline();
       for (final entry in entries) {
-        await entry.clear();
+        await entry!.clear();
         await entry.refetch();
       }
     });
@@ -69,29 +77,25 @@ void main() {
       await syncStorage.dispose();
       await Future.wait([
         for (int i = 0; i < entries.length; i++)
-          Hive.deleteBoxFromDisk((entries[i].storage).boxName),
+          Hive.deleteBoxFromDisk((entries[i]!.storage).boxName),
       ]);
     });
 
     test(
         'Do not sync cells that with larger levels '
         'when exception occured in lower level', () async {
-      expect(syncStorage.isSyncBreakedOnLevel, isFalse);
-      expect(syncStorage.syncBreakedOnLevel, isNull);
-      expect(syncStorage.hasError, isFalse);
-      expect(syncStorage.currentError, isNull);
-
-      final errorEntry = getEntryWithLevel(2);
-      when(errorEntry.networkCallbacks.onCreate(any))
+      final errorEntry = getEntryWithLevel(2)!;
+      when((errorEntry.networkCallbacks as MockStorageNetworkCallbacks)
+              .onCreate(any))
           .thenThrow(SyncException([]));
 
       for (final entry in entries) {
         const newElement = TestElement(1);
-        await entry.createElement(newElement);
+        await entry!.createElement(newElement);
       }
 
       for (final entry in entries) {
-        expect(entry.needsElementsSync, isTrue);
+        expect(entry!.needsElementsSync, isTrue);
       }
 
       await networkAvailabilityService.goOnline();
@@ -100,7 +104,7 @@ void main() {
 
       int level2ElementsToSyncCount = 0;
       for (final entry in entries) {
-        final hasElementsToSync = entry.cellsToSync.isNotEmpty;
+        final hasElementsToSync = entry!.cellsToSync.isNotEmpty;
 
         if (entry.level == 2 && hasElementsToSync) {
           level2ElementsToSyncCount++;
@@ -113,22 +117,18 @@ void main() {
 
       /// Only one entry with level 2 is not synced
       expect(level2ElementsToSyncCount, equals(1));
-      expect(syncStorage.isSyncBreakedOnLevel, isTrue);
-      expect(syncStorage.syncBreakedOnLevel, equals(2));
-      expect(syncStorage.hasError, isTrue);
-      expect(syncStorage.currentError, isA<SyncLevelException>());
     });
 
     test(
         'Do not fetch cells with larger levels '
         'when exception occured in lower level', () async {
-      final entry = getEntryWithLevel(2);
+      final entry = getEntryWithLevel(2)!;
       expect(entry.fetchAttempt, equals(-1));
       expect(entry.needsFetch, isTrue);
       expect(entry.canFetch, isTrue);
 
       for (final entry in entries) {
-        when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
+        when(entry!.networkCallbacks.onFetch()).thenAnswer((_) async => [
               const TestElement(1),
               const TestElement(2),
               const TestElement(3),
@@ -148,7 +148,8 @@ void main() {
 
       int notFetchedLevel2Count = 0;
       for (final entry in entries) {
-        final cells = await entry.storage.readAllCells();
+        final List<StorageCell<TestElement>> cells =
+            await entry!.storage.readAllCells();
         // print("level ${entry.level}:  cellsCount=${cells.length}");
 
         if (entry.level == 2 && cells.isEmpty) {
@@ -171,7 +172,7 @@ void main() {
           ]);
 
       // Wait for fetch avaiability if needed.
-      final diff = entry.nextFetchDelayedTo.difference(DateTime.now());
+      final diff = entry.nextFetchDelayedTo!.difference(DateTime.now());
       if (!diff.isNegative) {
         await Future<void>.delayed(diff);
       }
@@ -179,7 +180,8 @@ void main() {
       await syncStorage.syncEntriesWithNetwork();
 
       for (final entry in entries) {
-        final cells = await entry.storage.readAllCells();
+        final List<StorageCell<TestElement>> cells =
+            await entry!.storage.readAllCells();
         // print("level ${entry.level}:  cellsCount=${cells.length}");
 
         expect(cells, hasLength(4));

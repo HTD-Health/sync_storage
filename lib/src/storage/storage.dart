@@ -29,7 +29,7 @@ abstract class Storage<T> {
 
   Future<void> deleteCell(StorageCell<T> cell);
 
-  Future<StorageCell<T>> readCell(ObjectId id);
+  Future<StorageCell<T>?> readCell(ObjectId id);
 
   /// Read all cells from the storage.
   Future<List<StorageCell<T>>> readNotSyncedCells();

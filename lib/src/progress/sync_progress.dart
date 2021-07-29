@@ -4,22 +4,22 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class SyncProgressEvent {
-  final String entryName;
+  final String? entryName;
   final int actionIndex;
   final int actionsCount;
 
   double get progress => max(actionIndex, 0) / actionsCount;
 
   SyncProgressEvent({
-    @required this.entryName,
-    @required this.actionIndex,
-    @required this.actionsCount,
+    required this.entryName,
+    required this.actionIndex,
+    required this.actionsCount,
   });
 
   SyncProgressEvent copyWith({
-    String entryName,
-    int actionIndex,
-    int actionsCount,
+    String? entryName,
+    int? actionIndex,
+    int? actionsCount,
   }) {
     if (actionIndex != null &&
         actionIndex > (actionsCount ?? this.actionsCount)) {
@@ -39,17 +39,17 @@ class SyncProgressEvent {
 }
 
 class SyncProgress {
-  final _syncProgress = StreamController<SyncProgressEvent>.broadcast();
-  Stream<SyncProgressEvent> get stream => _syncProgress.stream;
+  final _syncProgress = StreamController<SyncProgressEvent?>.broadcast();
+  Stream<SyncProgressEvent?> get stream => _syncProgress.stream;
 
   bool get isStarted => _currentEvent != null;
 
-  SyncProgressEvent _currentEvent;
-  SyncProgressEvent get currentEvent => _currentEvent;
+  SyncProgressEvent? _currentEvent;
+  SyncProgressEvent? get currentEvent => _currentEvent;
 
   void start({
-    @required String entryName,
-    @required int actionsCount,
+    required String? entryName,
+    required int actionsCount,
   }) {
     ArgumentError.checkNotNull(actionsCount, 'resourcesCount');
     if (isStarted) {
@@ -65,14 +65,14 @@ class SyncProgress {
   }
 
   void update({
-    String entryName,
-    int actionIndex,
-    int actionsCount,
+    String? entryName,
+    int? actionIndex,
+    int? actionsCount,
   }) {
     if (!isStarted) {
       throw StateError('Cannot update $runtimeType. Not started.');
     }
-    _currentEvent = _currentEvent.copyWith(
+    _currentEvent = _currentEvent!.copyWith(
       actionIndex: actionIndex,
       actionsCount: actionsCount,
       entryName: entryName,
@@ -84,9 +84,9 @@ class SyncProgress {
     if (!isStarted) {
       throw StateError('Cannot end $runtimeType. Not started.');
     }
-    _syncProgress.sink.add(_currentEvent.copyWith(
+    _syncProgress.sink.add(_currentEvent!.copyWith(
       entryName: null,
-      actionIndex: _currentEvent.actionsCount,
+      actionIndex: _currentEvent!.actionsCount,
     ));
     _currentEvent = null;
     send();

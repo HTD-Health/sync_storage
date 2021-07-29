@@ -9,7 +9,7 @@ import '../../sync_storage.dart';
 
 class HiveStorageController<T> {
   @visibleForTesting
-  Box<String> box;
+  late Box<String> box;
   final String boxName;
   final Serializer<T> serializer;
 
@@ -32,11 +32,7 @@ class HiveStorageController<T> {
     _assertNotDisposed();
   }
 
-  HiveStorageController(this.boxName, this.serializer)
-      : assert(
-          boxName != null && serializer != null,
-          'boxName and serializer cannot be null',
-        );
+  HiveStorageController(this.boxName, this.serializer);
 
   Future<void> initialize() async {
     if (initialized) throw StateError('Controller is already initialized.');
@@ -121,9 +117,9 @@ class HiveStorageController<T> {
 
 class HiveStorage<T> extends Storage<T> {
   static const _configKey = '__config';
-  StorageConfig _config;
   @override
   StorageConfig get config => _config;
+  late StorageConfig _config;
 
   final String boxName;
   final Serializer<T> serializer;
@@ -131,7 +127,7 @@ class HiveStorage<T> extends Storage<T> {
   HiveStorage(this.boxName, this.serializer);
 
   @visibleForTesting
-  LazyBox<String> box;
+  late LazyBox<String?> box;
 
   @override
   Future<void> initialize() async {
@@ -153,7 +149,7 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   Future<void> open() async {
-    box = await Hive.openLazyBox<String>(boxName);
+    box = await Hive.openLazyBox<String?>(boxName);
     await _loadConfig();
   }
 
@@ -164,7 +160,7 @@ class HiveStorage<T> extends Storage<T> {
         .map((dynamic key) => box.get(key)));
 
     return values
-        .map((value) => StorageCell<T>.fromJson(value, serializer))
+        .map((value) => StorageCell<T>.fromJson(value!, serializer))
         .toList();
   }
 
@@ -179,7 +175,7 @@ class HiveStorage<T> extends Storage<T> {
     ArgumentError.checkNotNull(config, 'config');
 
     _config = config;
-    await box.put(_configKey, _config?.toJson());
+    await box.put(_configKey, _config.toJson());
   }
 
   @override
@@ -193,7 +189,7 @@ class HiveStorage<T> extends Storage<T> {
 
   @override
   Future<void> dispose() async {
-    await box?.close();
+    await box.close();
   }
 
   @override
@@ -213,7 +209,7 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<StorageCell<T>> readCell(ObjectId id) async {
+  Future<StorageCell<T>?> readCell(ObjectId id) async {
     final jsonEncodedCell = await box.get(id.hexString);
 
     return jsonEncodedCell == null

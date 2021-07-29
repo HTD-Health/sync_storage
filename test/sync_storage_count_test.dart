@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/src/storage_entry.dart';
@@ -6,6 +7,7 @@ import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 
 import 'data.dart';
+import 'sync_storage_count_test.mocks.dart';
 
 final delaysBeforeNextAttempt = <Duration>[
   const Duration(microseconds: 0),
@@ -23,18 +25,19 @@ class HasElementValue extends CustomMatcher {
   HasElementValue(dynamic matcher)
       : super('Storage with id that is', 'id', matcher);
   @override
-  int featureValueOf(dynamic actual) => (actual as TestElement).value;
+  int? featureValueOf(dynamic actual) => (actual as TestElement).value;
 }
 
+@GenerateMocks([StorageNetworkCallbacks])
 void main() {
   final boxNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
-  SyncStorage syncStorage;
+  late SyncStorage syncStorage;
   final List<HiveStorageMock<TestElement>> storages = [];
   final List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries =
       [];
   final networkAvailabilityService =
       MockedNetworkAvailabilityService(initialIsConnected: false);
-  final networkCallbacks = StorageNetworkCallbacksMock<TestElement>();
+  final networkCallbacks = MockStorageNetworkCallbacks<TestElement>();
 
   /// remove box if already exists
   setUpAll(() async {
@@ -52,6 +55,7 @@ void main() {
 
   setUp(() async {
     when(networkCallbacks.onFetch()).thenAnswer((_) async => []);
+    when(networkCallbacks.onCreate(any)).thenAnswer((_) async => null);
 
     for (final name in boxNames) {
       if (await Hive.boxExists(name)) {
@@ -119,12 +123,12 @@ void main() {
     expect(syncStorage.lastSync, isNull);
     await networkAvailabilityService.goOnline();
     await Future<void>.delayed(const Duration(seconds: 1));
-    final lastSync = syncStorage.lastSync;
+    final lastSync = syncStorage.lastSync!;
     expect(lastSync, isA<DateTime>());
 
     await entries.first.createElement(const TestElement(0));
     expect(syncStorage.lastSync, isA<DateTime>());
-    expect(syncStorage.lastSync.isAfter(lastSync), isTrue);
-    expect(entries.last.lastSync.isBefore(syncStorage.lastSync), isTrue);
+    expect(syncStorage.lastSync!.isAfter(lastSync), isTrue);
+    expect(entries.last.lastSync!.isBefore(syncStorage.lastSync!), isTrue);
   });
 }

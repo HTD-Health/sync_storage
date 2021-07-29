@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 /// Log levels:
@@ -29,8 +28,8 @@ class SyncStorageError extends SyncStorageLog {
 
   SyncStorageError(
     String message, {
-    @required this.error,
-    @required this.stackTrace,
+    required this.error,
+    required this.stackTrace,
   }) : super('SyncStorage', message, 2);
 }
 
@@ -51,20 +50,20 @@ class StorageEntryError extends StorageEntryLog {
   StorageEntryError(
     String storageEntryName,
     String message, {
-    @required this.error,
-    @required this.stackTrace,
+    required this.error,
+    required this.stackTrace,
   }) : super(storageEntryName, message, 2);
 }
 
 class StorageEntryFetchDelayed extends StorageEntryLog {
   final Duration duration;
-  final DateTime delayedTo;
+  final DateTime? delayedTo;
 
   StorageEntryFetchDelayed(
     String storageEntryName,
     String message, {
-    @required this.duration,
-    @required this.delayedTo,
+    required this.duration,
+    required this.delayedTo,
   }) : super(storageEntryName, message, 1);
 }
 
@@ -79,14 +78,14 @@ class CellInfo extends StorageEntryLog {
 
 class CellSyncDelayed extends CellInfo {
   final Duration duration;
-  final DateTime delayedTo;
+  final DateTime? delayedTo;
 
   CellSyncDelayed(
     String storageEntryName,
     String cellId,
     String message, {
-    @required this.duration,
-    @required this.delayedTo,
+    required this.duration,
+    required this.delayedTo,
   }) : super(storageEntryName, cellId, message, 1);
 }
 
@@ -97,7 +96,7 @@ class CellSyncAction extends CellInfo {
     String storageEntryName,
     String cellId,
     String message, {
-    @required this.action,
+    required this.action,
   }) : super(storageEntryName, cellId, message, 0);
 }
 
@@ -108,7 +107,7 @@ class CellSyncActionWarning extends CellInfo {
     String storageEntryName,
     String cellId,
     String message, {
-    @required this.action,
+    required this.action,
   }) : super(storageEntryName, cellId, message, 1);
 }
 
@@ -121,8 +120,8 @@ class CellSyncActionError extends CellInfo {
     String storageEntryName,
     String cellId,
     String message, {
-    @required this.action,
-    @required this.error,
-    @required this.stackTrace,
+    required this.action,
+    required this.error,
+    required this.stackTrace,
   }) : super(storageEntryName, cellId, message, 2);
 }

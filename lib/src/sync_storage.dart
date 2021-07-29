@@ -13,26 +13,18 @@ import 'errors/errors.dart';
 import 'logs/logs.dart';
 import 'storage_entry.dart';
 
-@deprecated
-void debugModePrint(String log, {bool enabled = true}) {
-  assert((() {
-    if (enabled) print(log);
-    return true;
-  })(), 'Debug mode print');
-}
-
 class SyncStorage {
   bool _disposed = false;
   bool get disposed => _disposed;
 
   /// Returns last sync date
-  DateTime get lastSync => entries.reduce((value, element) {
-        if (element.lastSync == null) {
+  DateTime? get lastSync => entries.reduce((value, element) {
+        if (element!.lastSync == null) {
           return value;
-        } else if (value.lastSync == null) {
+        } else if (value!.lastSync == null) {
           return element;
         } else {
-          if (element.lastSync.isAfter(value.lastSync)) {
+          if (element.lastSync!.isAfter(value.lastSync!)) {
             return element;
           } else {
             return value;
@@ -45,57 +37,54 @@ class SyncStorage {
   final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
   Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
-  final List<StorageEntry> _entries = [];
-  List<StorageEntry> get entries => _entries;
+  final List<StorageEntry?> _entries = [];
+  List<StorageEntry?> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
-  StreamSubscription<bool> _networkAvailabilitySubscription;
+  late StreamSubscription<bool> _networkAvailabilitySubscription;
 
   bool get networkAvailable => _networkNotifier.value;
   ValueNotifier<bool> get networkNotifier => _networkNotifier;
   final _networkNotifier = ValueNotifier<bool>(false);
 
   int get elementsToSyncCount =>
-      entries.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
+      entries.map<int>((e) => e!.elementsToSyncCount).reduce((s, e) => s + e);
 
-  Completer<void> _networkSyncTask;
+  Completer<void>? _networkSyncTask;
 
-  Stream<SyncProgressEvent> get progress => _progress.stream;
+  Stream<SyncProgressEvent?> get progress => _progress.stream;
   final _progress = SyncProgress();
 
   /// Whether [SyncStorage] is syncing entries with network.
   bool get isSyncing =>
-      _networkSyncTask != null && _networkSyncTask.isCompleted == false;
+      _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
   /// Check if [SyncStorage] contains not synced [StorageEntry].
-  bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
+  bool get needsNetworkSync => _entries.any((entry) => entry!.needsNetworkSync);
 
-  bool needsNetworkSyncWhere({@required int maxLevel}) {
+  bool needsNetworkSyncWhere({required int? maxLevel}) {
     if (maxLevel == null) {
       return needsNetworkSync;
     } else {
       return _entries.any(
-        (entry) => (entry.level <= maxLevel) && entry.needsNetworkSync,
+        (entry) => (entry!.level <= maxLevel) && entry.needsNetworkSync,
       );
     }
   }
 
-  List<StorageEntry> get entriesToSync => _entries
+  List<StorageEntry?> get entriesToSync => _entries
       // entries with fetch delayed needs to be added for
       // level functionality.
-      .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
+      .where((entry) => entry!.needsNetworkSync || entry.isFetchDelayed)
       .toList();
 
   final bool debug;
 
   SyncStorage({
-    @required this.networkAvailabilityService,
+    required this.networkAvailabilityService,
     this.debug = false,
-  }) : assert(
-          networkAvailabilityService != null,
-          'networkService cannot be null.',
-        ) {
-    _networkNotifier.value = networkAvailabilityService.isConnected ?? true;
+  }) {
+    _networkNotifier.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
@@ -123,25 +112,25 @@ class SyncStorage {
   Future<void> initialize() => Hive.initFlutter();
 
   Future<void> _syncEntriesWithNetwork() async {
-    int sortEntriesByLevelAscending(StorageEntry a, StorageEntry b) =>
-        a.level.compareTo(b.level);
+    int sortEntriesByLevelAscending(StorageEntry? a, StorageEntry? b) =>
+        a!.level.compareTo(b!.level);
 
     final sortedEntriesToSync = entriesToSync
       ..sort(sortEntriesByLevelAscending);
 
-    int errorLevel;
+    int? errorLevel;
     final errors = <ExceptionDetail>[];
     try {
       for (final entry in sortedEntriesToSync) {
-        if (errorLevel != null && entry.level > errorLevel) {
+        if (errorLevel != null && entry!.level > errorLevel) {
           throw SyncLevelException(errorLevel, errors);
         }
         try {
-          _logsStreamController.sink
-              .add(SyncStorageInfo('Syncing entry with name="${entry.name}".'));
+          _logsStreamController.sink.add(
+              SyncStorageInfo('Syncing entry with name="${entry!.name}".'));
           _progress.update(
             entryName: entry.name,
-            actionIndex: _progress.currentEvent.actionIndex + 1,
+            actionIndex: _progress.currentEvent!.actionIndex + 1,
             actionsCount: sortedEntriesToSync.length,
           );
 
@@ -161,7 +150,7 @@ class SyncStorage {
           await entry.syncElementsWithNetwork();
         } on Exception catch (err, stackTrace) {
           _logsStreamController.sink.add(SyncStorageError(
-            'Exception caught when syncing entry with name="${entry.name}".',
+            'Exception caught when syncing entry with name="${entry!.name}".',
             error: err,
             stackTrace: stackTrace,
           ));
@@ -191,7 +180,7 @@ class SyncStorage {
   }
 
   /// Sync all entries with network when available.
-  Future<void> syncEntriesWithNetwork() async {
+  Future<void>? syncEntriesWithNetwork() async {
     _logsStreamController.sink.add(SyncStorageInfo(
       'Requesting entries sync. Registered entries '
       'to sync: ${entriesToSync.length}.',
@@ -219,18 +208,18 @@ class SyncStorage {
 
     } finally {
       _progress.end();
-      _networkSyncTask.complete();
+      _networkSyncTask!.complete();
     }
   }
 
   Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
-    @required String name,
-    @required S storage,
-    @required StorageNetworkCallbacks<T> networkCallbacks,
+    required String name,
+    required S storage,
+    required StorageNetworkCallbacks<T> networkCallbacks,
     int level = 0,
-    OnCellSyncError<T> onCellSyncError,
-    ValueChanged<StorageCell<T>> onCellMaxAttemptsReached,
-    DelayDurationGetter getDelayBeforeNextAttempt,
+    OnCellSyncError<T>? onCellSyncError,
+    OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached,
+    DelayDurationGetter? getDelayBeforeNextAttempt,
   }) async {
     if (disposed) {
       throw StateError('Cannot register entry. $runtimeType was disposed.');
@@ -293,14 +282,16 @@ class SyncStorage {
     await entry.dispose();
   }
 
-  StorageEntry getEntryWithName(String name) =>
-      _entries.firstWhere((entry) => entry.name == name, orElse: () => null);
+  StorageEntry? getEntryWithName(String name) =>
+      _entries.firstWhere((entry) => entry!.name == name, orElse: () => null);
 
-  StorageEntry<T, S> getRegisteredEntry<T, S extends Storage<T>>(String name) =>
+  StorageEntry<T, S>? getRegisteredEntry<T, S extends Storage<T>>(
+    String name,
+  ) =>
       _entries.firstWhere(
         (entry) => entry is StorageEntry<T, S> && entry.name == name,
         orElse: () => null,
-      );
+      ) as StorageEntry<T, S>;
 
   Future<void> removeEntryWithName(String name) async {
     final entry = getEntryWithName(name);
@@ -317,7 +308,7 @@ class SyncStorage {
     final entries = [..._entries];
     _entries.clear();
     for (final entry in entries) {
-      await entry.dispose();
+      await entry!.dispose();
     }
   }
 

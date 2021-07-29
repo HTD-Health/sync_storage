@@ -71,7 +71,8 @@ void main() {
         expect(cell.isReadyForSync, isTrue);
 
         cell.registerSyncAttempt(
-            getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
+          getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt,
+        );
 
         expect(cell.isDelayed, isTrue);
         expect(cell.syncDelayedTo, isNotNull);
@@ -90,7 +91,13 @@ void main() {
         final cell = StorageCell(element: const TestElement(1));
         cell.registerSyncAttempt(
             getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
-        expect(cell.registerSyncAttempt, throwsA(isA<StateError>()));
+        expect(
+          () => cell.registerSyncAttempt(
+              getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt),
+          throwsA(
+            isA<StateError>(),
+          ),
+        );
       });
 
       test('with custom delay function', () async {

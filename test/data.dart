@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
-import 'package:mockito/mockito.dart';
-import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/services/network_availability_service.dart';
 import 'package:sync_storage/src/serializer.dart';
 import 'package:sync_storage/src/storage/hive_storage.dart';
@@ -80,11 +78,8 @@ class HiveStorageMock<T> extends HiveStorage<T> {
   }
 }
 
-class StorageNetworkCallbacksMock<T> extends Mock
-    implements StorageNetworkCallbacks<T> {}
-
 class TestElement {
-  final int value;
+  final int? value;
 
   const TestElement(this.value);
 }

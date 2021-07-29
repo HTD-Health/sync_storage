@@ -18,19 +18,19 @@ class StorageCell<T> {
   int get maxNetworkSyncAttempts => _defaultMaxNetworkSyncAttempts;
   static const _defaultMaxNetworkSyncAttempts = 5;
 
-  DateTime _syncDelayedTo;
-  DateTime get syncDelayedTo => _syncDelayedTo;
+  DateTime? _syncDelayedTo;
+  DateTime? get syncDelayedTo => _syncDelayedTo;
   bool get isDelayed =>
-      _syncDelayedTo != null && DateTime.now().isBefore(_syncDelayedTo);
+      _syncDelayedTo != null && DateTime.now().isBefore(_syncDelayedTo!);
   final DateTime createdAt;
-  DateTime get updatedAt => _updatedAt;
-  DateTime _updatedAt;
-  DateTime get lastSync => _lastSync;
-  DateTime _lastSync;
+  DateTime? get updatedAt => _updatedAt;
+  DateTime? _updatedAt;
+  DateTime? get lastSync => _lastSync;
+  DateTime? _lastSync;
   bool _deleted;
   bool get deleted => _deleted;
-  T _oldElement;
-  T get oldElement => _oldElement;
+  T? _oldElement;
+  T? get oldElement => _oldElement;
 
   /// Current element stored in the cell.
   T get element => _element;
@@ -45,7 +45,7 @@ class StorageCell<T> {
   /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is
   /// already reached.
   Duration registerSyncAttempt({
-    @required DelayDurationGetter getDelayBeforeNextAttempt,
+    required DelayDurationGetter getDelayBeforeNextAttempt,
   }) {
     if (isDelayed) {
       throw StateError('Cannot register sync attempt for delayed cell.');
@@ -92,15 +92,15 @@ class StorageCell<T> {
   }
 
   StorageCell({
-    ObjectId id,
-    @required T element,
-    T oldElement,
-    DateTime createdAt,
-    DateTime updatedAt,
-    DateTime lastSync,
-    bool deleted,
-    int networkSyncAttemptsCount,
-    DateTime syncDelayedTo,
+    ObjectId? id,
+    required T element,
+    T? oldElement,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? lastSync,
+    bool? deleted,
+    int? networkSyncAttemptsCount,
+    DateTime? syncDelayedTo,
   })  : _element = element,
         id = id ?? ObjectId(),
         createdAt = createdAt ?? DateTime.now(),
@@ -114,9 +114,9 @@ class StorageCell<T> {
   /// Sets [_lastSync] date to the same value as [createdAt] to
   /// indicate that [StorageCell] is synced.
   factory StorageCell.synced({
-    @required T element,
-    DateTime createdAt,
-    bool deleted,
+    required T element,
+    DateTime? createdAt,
+    bool? deleted,
   }) {
     final creationDate = createdAt ?? DateTime.now();
 
@@ -132,9 +132,9 @@ class StorageCell<T> {
   bool get wasSynced => lastSync != null;
   bool get needsNetworkSync => !(wasSynced &&
       // Element was updated after last sync
-      ((updatedAt != null && !updatedAt.isAfter(lastSync)) ||
+      ((updatedAt != null && !updatedAt!.isAfter(lastSync!)) ||
           // element was created after last sync
-          (updatedAt == null && !createdAt.isAfter(lastSync))));
+          (updatedAt == null && !createdAt.isAfter(lastSync!))));
 
   /// Whether current cell could be synced with network.
   bool get isReadyForSync => !isDelayed && needsNetworkSync;
@@ -195,12 +195,12 @@ class StorageCell<T> {
     );
   }
 
-  String toJson(Serializer<T> serializer) {
+  String toJson(Serializer<T?> serializer) {
     final jsonMap = <String, dynamic>{
       'id': id.hexString,
       'deleted': deleted,
       'syncDelayedTo': _syncDelayedTo?.toIso8601String(),
-      'createdAt': createdAt?.toIso8601String(),
+      'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'lastSync': lastSync?.toIso8601String(),
       'networkSyncAttemptsCount': networkSyncAttemptsCount,
@@ -231,7 +231,7 @@ class StorageCell<T> {
           : ObjectId.fromHexString(id),
       deleted: decodedJson['deleted'],
       networkSyncAttemptsCount: decodedJson['networkSyncAttemptsCount'],
-      element: element == null ? null : serializer.fromJson(element),
+      element: serializer.fromJson(element),
       oldElement: oldElement == null ? null : serializer.fromJson(oldElement),
       createdAt: createdAt == null ? null : DateTime.tryParse(createdAt),
       updatedAt: updatedAt == null ? null : DateTime.tryParse(updatedAt),

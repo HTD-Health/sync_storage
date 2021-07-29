@@ -4,31 +4,29 @@ class SyncIndicator {
   final DelayDurationGetter getDelay;
 
   bool get needSync => _needSync;
-  bool _needSync;
+  late bool _needSync;
 
   int get attempt => _attempt;
-  int _attempt;
+  int _attempt = 0;
 
-  DateTime get delayedTo => _delayedTo;
-  DateTime _delayedTo;
-
-  bool get canSync =>
-      needSync &&
-      (delayedTo.isAtSameMomentAs(DateTime.now()) ||
-          delayedTo.isBefore(DateTime.now()));
+  DateTime? get delayedTo => _delayedTo;
+  DateTime? _delayedTo;
 
   bool get isSyncDelayed => attempt >= 0;
 
-  SyncIndicator({
-    this.getDelay,
-    bool needSync,
-  }) {
-    ArgumentError.checkNotNull(getDelay, 'getDelay');
+  bool get canSync =>
+      needSync &&
+      (delayedTo!.isAtSameMomentAs(DateTime.now()) ||
+          delayedTo!.isBefore(DateTime.now()));
 
+  SyncIndicator({
+    required this.getDelay,
+    bool? needSync,
+  }) {
     reset(needSync: needSync);
   }
 
-  void reset({bool needSync}) {
+  void reset({bool? needSync}) {
     _needSync = needSync ?? false;
     _attempt = -1;
     _delayedTo = DateTime.now();

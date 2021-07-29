@@ -10,11 +10,12 @@ void main() {
     const box1Name = 'box1';
     const box2Name = 'box2';
 
-    HiveStorageControllerMock<TestElement> controller;
+    late HiveStorageControllerMock<TestElement> controller;
     HiveStorage<TestElement> hiveStorage1;
 
     setUpAll(() async {
       /// Delete config storag if exist.
+      Hive.init('./');
       await Hive.deleteBoxFromDisk(storageKey);
     });
 
