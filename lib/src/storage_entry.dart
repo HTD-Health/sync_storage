@@ -29,9 +29,8 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
   if (attemptNumber < 5) {
     return const [
       Duration(seconds: 1),
-      Duration(minutes: 30),
-      Duration(minutes: 1),
       Duration(minutes: 5),
+      Duration(minutes: 30),
       Duration(hours: 1),
     ][attemptNumber];
   } else {
