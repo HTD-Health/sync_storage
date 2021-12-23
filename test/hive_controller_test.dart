@@ -1,6 +1,6 @@
+import 'package:hive/hive.dart';
 import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
-import 'package:hive/hive.dart';
 
 import 'data.dart';
 

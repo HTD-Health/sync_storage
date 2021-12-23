@@ -1,4 +1,3 @@
-import 'package:sync_storage/src/storage_entry.dart';
 import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 

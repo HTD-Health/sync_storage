@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:objectid/objectid.dart';
-import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/serializer.dart';
+import 'package:sync_storage/src/storage/storage.dart';
 
 import 'errors/errors.dart';
 import 'helpers/sync_indicator.dart';

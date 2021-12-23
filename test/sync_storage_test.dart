@@ -1,8 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:sync_storage/src/sync_storage.dart';
-import 'package:sync_storage/src/storage_entry.dart';
 import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 

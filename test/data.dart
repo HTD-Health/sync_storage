@@ -2,9 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:hive/hive.dart';
-import 'package:sync_storage/src/services/network_availability_service.dart';
-import 'package:sync_storage/src/serializer.dart';
-import 'package:sync_storage/src/storage/hive_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
