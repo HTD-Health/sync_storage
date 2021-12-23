@@ -1,17 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:meta/meta.dart';
-import 'package:sync_storage/src/progress/sync_progress.dart';
-import 'package:sync_storage/src/services/network_availability_service.dart';
-import 'package:sync_storage/src/storage/storage.dart';
-import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/sync_storage.dart';
-import 'errors/errors.dart';
-import 'logs/logs.dart';
-import 'storage_entry.dart';
 
 class SyncStorage {
   bool _disposed = false;
@@ -19,9 +10,9 @@ class SyncStorage {
 
   /// Returns last sync date
   DateTime? get lastSync => entries.reduce((value, element) {
-        if (element!.lastSync == null) {
+        if (element.lastSync == null) {
           return value;
-        } else if (value!.lastSync == null) {
+        } else if (value.lastSync == null) {
           return element;
         } else {
           if (element.lastSync!.isAfter(value.lastSync!)) {
@@ -30,15 +21,15 @@ class SyncStorage {
             return value;
           }
         }
-      })?.lastSync;
+      }).lastSync;
 
   final _logsStreamController = StreamController<SyncStorageLog>.broadcast();
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
   final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
   Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
-  final List<StorageEntry?> _entries = [];
-  List<StorageEntry?> get entries => _entries;
+  final List<StorageEntry> _entries = [];
+  List<StorageEntry> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
   late StreamSubscription<bool> _networkAvailabilitySubscription;
@@ -48,7 +39,7 @@ class SyncStorage {
   final _networkNotifier = ValueNotifier<bool>(false);
 
   int get elementsToSyncCount =>
-      entries.map<int>((e) => e!.elementsToSyncCount).reduce((s, e) => s + e);
+      entries.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
 
   Completer<void>? _networkSyncTask;
 
@@ -60,14 +51,14 @@ class SyncStorage {
       _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
   /// Check if [SyncStorage] contains not synced [StorageEntry].
-  bool get needsNetworkSync => _entries.any((entry) => entry!.needsNetworkSync);
+  bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
 
   bool needsNetworkSyncWhere({required int? maxLevel}) {
     if (maxLevel == null) {
       return needsNetworkSync;
     } else {
       return _entries.any(
-        (entry) => (entry!.level <= maxLevel) && entry.needsNetworkSync,
+        (entry) => (entry.level <= maxLevel) && entry.needsNetworkSync,
       );
     }
   }
@@ -75,7 +66,7 @@ class SyncStorage {
   List<StorageEntry?> get entriesToSync => _entries
       // entries with fetch delayed needs to be added for
       // level functionality.
-      .where((entry) => entry!.needsNetworkSync || entry.isFetchDelayed)
+      .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
       .toList();
 
   final bool debug;
@@ -282,16 +273,17 @@ class SyncStorage {
     await entry.dispose();
   }
 
-  StorageEntry? getEntryWithName(String name) =>
-      _entries.firstWhere((entry) => entry!.name == name, orElse: () => null);
+  StorageEntry? getEntryWithName(String name) => _entries
+      .cast<StorageEntry?>()
+      .firstWhere((entry) => entry!.name == name, orElse: () => null);
 
   StorageEntry<T, S>? getRegisteredEntry<T, S extends Storage<T>>(
     String name,
   ) =>
-      _entries.firstWhere(
-        (entry) => entry is StorageEntry<T, S> && entry.name == name,
-        orElse: () => null,
-      ) as StorageEntry<T, S>;
+      _entries.cast<StorageEntry?>().firstWhere(
+            (entry) => entry is StorageEntry<T, S> && entry.name == name,
+            orElse: () => null,
+          ) as StorageEntry<T, S>;
 
   Future<void> removeEntryWithName(String name) async {
     final entry = getEntryWithName(name);
@@ -308,7 +300,7 @@ class SyncStorage {
     final entries = [..._entries];
     _entries.clear();
     for (final entry in entries) {
-      await entry!.dispose();
+      await entry.dispose();
     }
   }
 

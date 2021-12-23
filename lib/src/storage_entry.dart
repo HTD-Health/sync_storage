@@ -76,8 +76,8 @@ class StorageEntry<T, S extends Storage<T>> {
 
   final SyncIndicator _fetchIndicator;
   DateTime? get nextFetchDelayedTo => _fetchIndicator.delayedTo;
-  int? get fetchAttempt => _fetchIndicator.attempt;
-  bool? get needsFetch => _fetchIndicator.needSync;
+  int get fetchAttempt => _fetchIndicator.attempt;
+  bool get needsFetch => _fetchIndicator.needSync;
   bool get canFetch => _fetchIndicator.canSync;
   bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
 
