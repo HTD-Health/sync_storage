@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:sync_storage/src/logs/storage_entry_logs.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 class SyncStorage {
@@ -63,7 +64,7 @@ class SyncStorage {
     }
   }
 
-  List<StorageEntry?> get entriesToSync => _entries
+  List<StorageEntry> get entriesToSync => _entries
       // entries with fetch delayed needs to be added for
       // level functionality.
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
@@ -91,7 +92,8 @@ class SyncStorage {
     if (networkAvailable != _networkNotifier.value) {
       _networkNotifier.value = networkAvailable;
       if (networkAvailable) {
-        _logsStreamController.sink.add(SyncStorageInfo(
+        _logsStreamController.sink.add(const SyncStorageInfo(
+          'sync_storage',
           'Network connection is now available.',
         ));
 
@@ -113,12 +115,14 @@ class SyncStorage {
     final errors = <ExceptionDetail>[];
     try {
       for (final entry in sortedEntriesToSync) {
-        if (errorLevel != null && entry!.level > errorLevel) {
+        if (errorLevel != null && entry.level > errorLevel) {
           throw SyncLevelException(errorLevel, errors);
         }
         try {
-          _logsStreamController.sink.add(
-              SyncStorageInfo('Syncing entry with name="${entry!.name}".'));
+          _logsStreamController.sink.add(StorageEntryInfo(
+            entry.name,
+            'Syncing "${entry.name}" entry...',
+          ));
           _progress.update(
             entryName: entry.name,
             actionIndex: _progress.currentEvent!.actionIndex + 1,
@@ -140,10 +144,11 @@ class SyncStorage {
           /// sync all cells with network.
           await entry.syncElementsWithNetwork();
         } on Exception catch (err, stackTrace) {
-          _logsStreamController.sink.add(SyncStorageError(
-            'Exception caught when syncing entry with name="${entry!.name}".',
-            error: err,
-            stackTrace: stackTrace,
+          _logsStreamController.sink.add(StorageEntryError(
+            entry.name,
+            'Caught exception while synchronizing "${entry.name}" entry.',
+            err,
+            stackTrace,
           ));
           _errorStreamController.add(ExceptionDetail(err, stackTrace));
 
@@ -163,6 +168,7 @@ class SyncStorage {
       }
     } on SyncException catch (err, stackTrace) {
       _logsStreamController.sink.add(SyncStorageWarning(
+        'sync_storage',
         'Breaking sync on level="$errorLevel".',
       ));
       _errorStreamController.add(ExceptionDetail(err, stackTrace));
@@ -173,16 +179,18 @@ class SyncStorage {
   /// Sync all entries with network when available.
   Future<void>? syncEntriesWithNetwork() async {
     _logsStreamController.sink.add(SyncStorageInfo(
+      'sync_storage',
       'Requesting entries sync. Registered entries '
-      'to sync: ${entriesToSync.length}.',
+          'to sync: ${entriesToSync.length}.',
     ));
 
     /// If there is no network connection, do not perform
     /// the network synchronization steps
     if (!networkAvailable) {
-      _logsStreamController.sink.add(SyncStorageWarning(
+      _logsStreamController.sink.add(const SyncStorageWarning(
+        'sync_storage',
         'Network connection is currently not available. '
-        'Waiting for connection...',
+            'Waiting for connection...',
       ));
       return;
     }
@@ -217,7 +225,7 @@ class SyncStorage {
     }
 
     _logsStreamController.sink
-        .add(SyncStorageInfo('Registering entry with name="$name"'));
+        .add(SyncStorageInfo('sync_storage', 'Registering "$name" entry...'));
 
     if (getEntryWithName(name) != null) {
       throw ArgumentError.value(
@@ -245,17 +253,19 @@ class SyncStorage {
       _entries.add(entry);
       final needsFetch = entry.needsFetch;
       _logsStreamController.sink.add(SyncStorageInfo(
-        'Registered entry with name: "$name".\n'
-        'elements to sync: ${entry.cellsToSync.length},\n'
-        'needs fetch: ${needsFetch}.',
+        'sync_storage',
+        'Registered "$name" entry.\n'
+            'elements to sync: ${entry.cellsToSync.length},\n'
+            'needs fetch: ${needsFetch}.',
       ));
       // await syncEntriesWithNetwork();
       return entry;
     } on Exception catch (err, st) {
       _logsStreamController.sink.add(SyncStorageError(
-        'Error during entry initialization with name: "$name".',
-        error: err,
-        stackTrace: st,
+        'sync_storage',
+        'Caught exception while initializing "${name}" entry.',
+        err,
+        st,
       ));
       _errorStreamController.add(ExceptionDetail(err, st));
 

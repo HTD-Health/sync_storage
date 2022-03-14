@@ -10,7 +10,9 @@ import 'package:sync_storage/src/storage/storage.dart';
 
 import 'errors/errors.dart';
 import 'helpers/sync_indicator.dart';
+import 'logs/cells_logs.dart';
 import 'logs/logs.dart';
+import 'logs/storage_entry_logs.dart';
 import 'sync_storage.dart';
 
 part 'storage_cell.dart';
