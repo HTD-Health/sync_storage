@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:connectivity/connectivity.dart';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
@@ -9,7 +10,6 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
 
   final Duration pollingDuration;
   final List<String>? lookupAddresses;
-  final bool debug;
 
   Timer? _timer;
   bool _internetAvailable = false;
@@ -21,7 +21,6 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
 
   NetworkAvailabilityLookupService({
     this.lookupAddresses,
-    this.debug = false,
     this.pollingDuration = const Duration(seconds: 2),
   }) {
     _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
@@ -80,9 +79,7 @@ class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
     _timer = Timer.periodic(pollingDuration, (_) => _publishConnectionStatus());
   }
 
-  void _cancelTimer() {
-    _timer?.cancel();
-  }
+  void _cancelTimer() => _timer?.cancel();
 
   @override
   void dispose() {
