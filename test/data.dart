@@ -47,7 +47,7 @@ class HiveStorageControllerMock<T> extends HiveStorageController<T> {
   @override
   bool initialized = false;
 
-  /// override initialize to ommit flutter hive initialization.
+  /// override initialize to skip flutter hive initialization.
   @override
   Future<void> initialize() async {
     Hive.init('./');
@@ -60,7 +60,7 @@ class HiveStorageMock<T> extends HiveStorage<T> {
   HiveStorageMock(String boxName, Serializer<T> serializer)
       : super(boxName, serializer);
 
-  /// override initialize to ommit flutter hive initialization.
+  /// override initialize to skip flutter hive initialization.
   @override
   // ignore: must_call_super
   Future<void> initialize() async {
@@ -83,6 +83,7 @@ class TestElement {
 
 class TestElementSerializer extends Serializer<TestElement> {
   const TestElementSerializer();
+
   @override
   TestElement fromJson(String json) {
     final dynamic jsonMap = jsonDecode(json);

@@ -80,7 +80,7 @@ void main() {
 
     test(
         'Do not sync cells that with larger levels '
-        'when exception occured in lower level', () async {
+        'when exception occurred in lower level', () async {
       final errorEntry = getEntryWithLevel(2)!;
       when((errorEntry.networkCallbacks as MockStorageNetworkCallbacks)
               .onCreate(any))
@@ -118,7 +118,7 @@ void main() {
 
     test(
         'Do not fetch cells with larger levels '
-        'when exception occured in lower level', () async {
+        'when exception occurred in lower level', () async {
       final entry = getEntryWithLevel(2)!;
       expect(entry.fetchAttempt, equals(-1));
       expect(entry.needsFetch, isTrue);
@@ -168,7 +168,7 @@ void main() {
             const TestElement(4),
           ]);
 
-      // Wait for fetch avaiability if needed.
+      // Wait for fetch availability if needed.
       final diff = entry.nextFetchDelayedTo!.difference(DateTime.now());
       if (!diff.isNegative) {
         await Future<void>.delayed(diff);

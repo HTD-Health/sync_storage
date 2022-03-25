@@ -52,7 +52,7 @@ class CellWarning extends SyncStorageWarning implements CellLog {
         );
 }
 
-/// Cell sync with provided [cellId] was delyed.
+/// Cell sync with provided [cellId] was delayed.
 class CellSyncDelayed extends CellWarning {
   final Duration duration;
   final DateTime? delayedTo;
@@ -107,7 +107,7 @@ class CellError extends SyncStorageError implements CellLog {
         );
 }
 
-/// Informs about the unsuccesfull cell sync action.
+/// Informs about the unsuccessfull cell sync action.
 class CellSyncActionError extends CellError {
   final SyncAction action;
 

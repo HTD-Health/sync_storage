@@ -70,8 +70,8 @@ class HiveStorageController<T> {
     return box.values.toList();
   }
 
-  /// Delete all registred Boxes
-  Future<void> deleteAllRegistredStorages() async {
+  /// Delete all registered Boxes
+  Future<void> deleteAllRegisteredStorages() async {
     _assertInitializedNotDisposed();
 
     for (final boxNameEntry in box.toMap().entries) {
@@ -88,7 +88,7 @@ class HiveStorageController<T> {
     _assertInitializedNotDisposed();
 
     MapEntry<dynamic, String> onBoxDoesNotExist() {
-      throw StateError('Box with provided name is not registred.');
+      throw StateError('Box with provided name is not registered.');
     }
 
     final boxNameEntry = box.toMap().entries.firstWhere(

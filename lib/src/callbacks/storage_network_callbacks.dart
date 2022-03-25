@@ -29,7 +29,7 @@ abstract class StorageNetworkCallbacks<T> {
 
   /// Fetch all data for [StorageEntry].
   ///
-  /// Returning null, will take no effect. To remove all data from storage,
+  /// Returning null, will have no effect. To remove all data from storage,
   /// return empty list.
   Future<List<T>?> onFetch();
 

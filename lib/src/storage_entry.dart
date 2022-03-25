@@ -53,7 +53,7 @@ class StorageEntry<T, S extends Storage<T>> {
   /// It could be helpful for maintaining database relations.
   /// For example elements with level `1` are nested in elements with level
   /// `0`. So it is not possible to store level `1` element when its' parent
-  /// (element with level `0`) does not exixt (is not fetched).
+  /// (element with level `0`) does not exist (is not fetched).
   ///
   /// By default, all entries have level set to `0`.
   final int level;
@@ -377,7 +377,7 @@ class StorageEntry<T, S extends Storage<T>> {
         _removeCellFromCellsToSync(cell);
 
         if (cell.deleted) {
-          // deleted celll should be removed from the storage
+          // deleted cell should be removed from the storage
           await storage.deleteCell(cell);
         } else {
           // Changes were made for current cell. It should be
@@ -427,7 +427,7 @@ class StorageEntry<T, S extends Storage<T>> {
       }
     }
 
-    /// If new changes to elements have been maed sync them with network.
+    /// If new changes to elements have been made sync them with network.
     if (needsElementsSync && networkAvailable) {
       await _syncElementsWithNetwork();
     } else {

@@ -82,7 +82,7 @@ void main() {
     });
 
     test(
-        'setElements removes all ements that neeeds '
+        'setElements removes all elements that need '
         'sync and do not cause network sync', () async {
       entry.createElement(const TestElement(20));
       entry.createElement(const TestElement(21));
@@ -197,7 +197,7 @@ void main() {
     });
 
     group('Offline support', () {
-      test('succesfully changes network state', () async {
+      test('successfully changes network state', () async {
         expect(syncStorage.networkAvailable, isTrue);
         await networkAvailabilityService.goOffline();
 
@@ -237,7 +237,7 @@ void main() {
         verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
       });
 
-      test('Succesfully sync data when network is available', () async {
+      test('Successfully sync data when network is available', () async {
         await networkAvailabilityService.goOffline();
 
         expect(entry.needsNetworkSync, isFalse);
@@ -381,7 +381,7 @@ void main() {
         ]);
       });
 
-      test('Succesfully moves cells between entries', () async {
+      test('Successfully moves cells between entries', () async {
         await networkAvailabilityService.goOnline();
 
         List<StorageCell<TestElement>> cells1 = await storage1!.readAllCells();
@@ -530,7 +530,7 @@ void main() {
         /// Reset callback
         reset(networkCallbacks);
 
-        /// Remove registred entries from syncStorage
+        /// Remove registered entries from syncStorage
         await syncStorage.disposeAllEntries();
 
         /// Recreate entry
