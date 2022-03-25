@@ -37,7 +37,7 @@ class StorageEntryFetchDelayed extends SyncStorageWarning
   final Duration duration;
   final DateTime? delayedTo;
 
-  StorageEntryFetchDelayed(
+  const StorageEntryFetchDelayed(
     this.storageEntryName,
     String message, {
     required this.duration,

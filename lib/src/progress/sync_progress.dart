@@ -10,7 +10,7 @@ class SyncProgressEvent {
 
   double get progress => max(actionIndex, 0) / actionsCount;
 
-  SyncProgressEvent({
+  const SyncProgressEvent({
     required this.entryName,
     required this.actionIndex,
     required this.actionsCount,

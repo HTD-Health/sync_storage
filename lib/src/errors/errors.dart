@@ -2,7 +2,7 @@ class ExceptionDetail {
   final Exception exception;
   final StackTrace stackTrace;
 
-  ExceptionDetail(this.exception, this.stackTrace);
+  const ExceptionDetail(this.exception, this.stackTrace);
 
   @override
   String toString() => '$exception\n$stackTrace';
@@ -11,7 +11,7 @@ class ExceptionDetail {
 class SyncException implements Exception {
   final List<ExceptionDetail> errors;
 
-  SyncException(this.errors);
+  const SyncException(this.errors);
 
   @override
   String toString() {
@@ -28,7 +28,7 @@ class SyncException implements Exception {
 class SyncLevelException extends SyncException {
   final int level;
 
-  SyncLevelException(
+  const SyncLevelException(
     this.level,
     List<ExceptionDetail> errors,
   ) : super(errors);

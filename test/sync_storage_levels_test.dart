@@ -84,7 +84,7 @@ void main() {
       final errorEntry = getEntryWithLevel(2)!;
       when((errorEntry.networkCallbacks as MockStorageNetworkCallbacks)
               .onCreate(any))
-          .thenThrow(SyncException([]));
+          .thenThrow(const SyncException([]));
 
       for (final entry in entries) {
         const newElement = TestElement(1);
@@ -133,7 +133,7 @@ void main() {
             ]);
       }
 
-      when(entry.networkCallbacks.onFetch()).thenThrow(SyncException([]));
+      when(entry.networkCallbacks.onFetch()).thenThrow(const SyncException([]));
 
       await networkAvailabilityService.goOnline();
 
