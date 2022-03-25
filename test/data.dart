@@ -18,11 +18,6 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
     bool initialIsConnected = false,
   }) : _isConnected = initialIsConnected;
 
-  @override
-  void dispose() {
-    networkAvailabilityController.close();
-  }
-
   Future<void> goOnline() async {
     networkAvailabilityController.add(true);
     _isConnected = true;
@@ -37,6 +32,11 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
 
     /// wait for network changes to take effect
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+
+  @override
+  void dispose() {
+    networkAvailabilityController.close();
   }
 }
 
