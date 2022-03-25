@@ -18,11 +18,6 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
     bool initialIsConnected = false,
   }) : _isConnected = initialIsConnected;
 
-  @override
-  void dispose() {
-    networkAvailabilityController.close();
-  }
-
   Future<void> goOnline() async {
     networkAvailabilityController.add(true);
     _isConnected = true;
@@ -38,6 +33,11 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
     /// wait for network changes to take effect
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
+
+  @override
+  void dispose() {
+    networkAvailabilityController.close();
+  }
 }
 
 class HiveStorageControllerMock<T> extends HiveStorageController<T> {
@@ -47,7 +47,7 @@ class HiveStorageControllerMock<T> extends HiveStorageController<T> {
   @override
   bool initialized = false;
 
-  /// override initialize to ommit flutter hive initialization.
+  /// override initialize to skip flutter hive initialization.
   @override
   Future<void> initialize() async {
     Hive.init('./');
@@ -60,7 +60,7 @@ class HiveStorageMock<T> extends HiveStorage<T> {
   HiveStorageMock(String boxName, Serializer<T> serializer)
       : super(boxName, serializer);
 
-  /// override initialize to ommit flutter hive initialization.
+  /// override initialize to skip flutter hive initialization.
   @override
   // ignore: must_call_super
   Future<void> initialize() async {
@@ -83,6 +83,7 @@ class TestElement {
 
 class TestElementSerializer extends Serializer<TestElement> {
   const TestElementSerializer();
+
   @override
   TestElement fromJson(String json) {
     final dynamic jsonMap = jsonDecode(json);

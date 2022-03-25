@@ -231,7 +231,7 @@ class SyncStorage {
       throw ArgumentError.value(
         name,
         'name',
-        'Entry with provided name is already registred.\n'
+        'Entry with provided name is already registered.\n'
             'Instead use "getRegisteredEntry" method.',
       );
     }

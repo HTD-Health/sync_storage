@@ -14,7 +14,7 @@ void main() {
     HiveStorage<TestElement> hiveStorage1;
 
     setUpAll(() async {
-      /// Delete config storag if exist.
+      /// Delete config storage if exist.
       Hive.init('./');
       await Hive.deleteBoxFromDisk(storageKey);
     });
@@ -32,13 +32,13 @@ void main() {
       );
     });
 
-    test('Successfully initilize controller', () async {
+    test('Successfully initialize controller', () async {
       await controller.initialize();
       expect(controller.initialized, isTrue);
       expect(controller.registeredStorages, hasLength(0));
     });
 
-    test('Sucessfully creates storages', () async {
+    test('Successfully creates storages', () async {
       hiveStorage1 = controller.getStorage(box1Name);
       controller.getStorage(box2Name);
       expect(hiveStorage1, isNotNull);
@@ -65,7 +65,7 @@ void main() {
           'box5',
         ]),
       );
-      await controller.deleteAllRegistredStorages();
+      await controller.deleteAllRegisteredStorages();
       expect(controller.registeredStorages, hasLength(0));
     });
 

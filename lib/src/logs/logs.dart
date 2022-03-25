@@ -1,4 +1,4 @@
-/// Abtract class that groups all sync_storage logs
+/// Abstract class that groups all sync_storage logs
 abstract class SyncStorageLog {
   final String source;
   final String message;
@@ -6,12 +6,12 @@ abstract class SyncStorageLog {
   const SyncStorageLog(this.source, this.message);
 }
 
-/// All info level logs extends or implements [SyncStorageInfo] class
+/// All info level logs extend or implement [SyncStorageInfo] class
 class SyncStorageInfo extends SyncStorageLog {
   const SyncStorageInfo(String source, String message) : super(source, message);
 }
 
-/// All warning level logs extends or implements [SyncStorageWarning] class
+/// All warning level logs extend or implement [SyncStorageWarning] class
 class SyncStorageWarning extends SyncStorageLog {
   const SyncStorageWarning(
     String source,
@@ -19,7 +19,7 @@ class SyncStorageWarning extends SyncStorageLog {
   ) : super(source, message);
 }
 
-/// All error level logs extends or implements [SyncStorageError] class
+/// All error level logs extend or implement [SyncStorageError] class
 class SyncStorageError extends SyncStorageLog {
   final Exception error;
   final StackTrace stackTrace;

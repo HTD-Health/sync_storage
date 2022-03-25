@@ -42,7 +42,7 @@ class CellWarning extends SyncStorageWarning implements CellLog {
   @override
   final String cellId;
 
-  CellWarning(
+  const CellWarning(
     this.storageEntryName,
     this.cellId,
     String message,
@@ -52,7 +52,7 @@ class CellWarning extends SyncStorageWarning implements CellLog {
         );
 }
 
-/// Cell sync with provided [cellId] was delyed.
+/// Cell sync with provided [cellId] was delayed.
 class CellSyncDelayed extends CellWarning {
   final Duration duration;
   final DateTime? delayedTo;
@@ -74,7 +74,7 @@ class CellSyncDelayed extends CellWarning {
 class CellSyncActionWarning extends CellWarning {
   final SyncAction action;
 
-  CellSyncActionWarning(
+  const CellSyncActionWarning(
     String storageEntryName,
     String cellId,
     String message, {
@@ -93,7 +93,7 @@ class CellError extends SyncStorageError implements CellLog {
   @override
   final String cellId;
 
-  CellError(
+  const CellError(
     this.storageEntryName,
     this.cellId,
     String message,
@@ -107,11 +107,11 @@ class CellError extends SyncStorageError implements CellLog {
         );
 }
 
-/// Informs about the unsuccesfull cell sync action.
+/// Informs about the unsuccessfull cell sync action.
 class CellSyncActionError extends CellError {
   final SyncAction action;
 
-  CellSyncActionError(
+  const CellSyncActionError(
     String storageEntryName,
     String cellId,
     String message, {
