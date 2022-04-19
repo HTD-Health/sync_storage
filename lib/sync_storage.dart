@@ -24,4 +24,4 @@ export 'src/storage_entry.dart'
         OnCellMaxAttemptReached,
         OnCellSyncError,
         SyncAction;
-export 'src/sync_storage.dart' show SyncStorage;
+export 'src/sync_storage.dart' show SyncStorage, SyncStorageStatus;
