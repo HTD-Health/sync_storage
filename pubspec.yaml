@@ -16,6 +16,7 @@ dependencies:
   hive: ^2.0.5
   hive_flutter: ^1.1.0
   connectivity_plus: ^2.2.1
+  rxdart: ^0.27.3
   objectid: ^2.0.0
 
 dev_dependencies:
