@@ -2,12 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:rxdart/subjects.dart';
 import 'package:sync_storage/src/logs/storage_entry_logs.dart';
 import 'package:sync_storage/sync_storage.dart';
 
+enum SyncStorageStatus {
+  idle,
+  syncing,
+  disposed,
+}
+
 class SyncStorage {
-  bool _disposed = false;
-  bool get disposed => _disposed;
+  bool get disposed => status == SyncStorageStatus.disposed;
 
   /// Returns last sync date
   DateTime? get lastSync => entries.reduce((value, element) {
@@ -28,6 +34,11 @@ class SyncStorage {
   Stream<SyncStorageLog> get logs => _logsStreamController.stream;
   final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
   Stream<ExceptionDetail> get errors => _errorStreamController.stream;
+
+  final _statusController =
+      BehaviorSubject<SyncStorageStatus>.seeded(SyncStorageStatus.idle);
+  Stream<SyncStorageStatus> get statuses => _statusController.stream;
+  SyncStorageStatus get status => _statusController.value;
 
   final List<StorageEntry> _entries = [];
   List<StorageEntry> get entries => _entries;
@@ -197,6 +208,7 @@ class SyncStorage {
 
     /// If already syncing return current sync task future if available.
     if (isSyncing) return _networkSyncTask?.future;
+    _statusController.sink.add(SyncStorageStatus.syncing);
 
     _progress.start(entryName: null, actionsCount: entriesToSync.length);
     _networkSyncTask = Completer<void>();
@@ -208,6 +220,7 @@ class SyncStorage {
     } finally {
       _progress.end();
       _networkSyncTask!.complete();
+      _statusController.sink.add(SyncStorageStatus.idle);
     }
   }
 
@@ -324,13 +337,13 @@ class SyncStorage {
     if (disposed) {
       throw StateError('Sync storage was already disposed');
     }
-
-    _disposed = true;
+    _statusController.sink.add(SyncStorageStatus.disposed);
 
     await clear();
     _progress.dispose();
     _networkNotifier.dispose();
     _networkAvailabilitySubscription.cancel();
     _logsStreamController.close();
+    _statusController.close();
   }
 }
