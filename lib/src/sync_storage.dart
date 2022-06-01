@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:sync_storage/src/logs/storage_entry_logs.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -112,8 +111,6 @@ class SyncStorage {
       }
     }
   }
-
-  Future<void> initialize() => Hive.initFlutter();
 
   Future<void> _syncEntriesWithNetwork() async {
     int sortEntriesByLevelAscending(StorageEntry? a, StorageEntry? b) =>

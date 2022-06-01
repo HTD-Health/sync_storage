@@ -35,6 +35,9 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
   }
 
   @override
+  Future<bool> checkConnection() async => isConnected;
+
+  @override
   void dispose() {
     networkAvailabilityController.close();
   }
