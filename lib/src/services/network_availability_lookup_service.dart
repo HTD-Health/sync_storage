@@ -1,89 +1,67 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:sync_storage/sync_storage.dart';
+import 'package:rxdart/subjects.dart';
+import 'package:sync_storage/src/services/network_availability_service.dart';
 
 class NetworkAvailabilityLookupService extends NetworkAvailabilityService {
-  final Connectivity _connectivity = Connectivity();
-  final _streamController = StreamController<bool>.broadcast();
+  final _streamController = BehaviorSubject<bool>.seeded(false);
 
-  final Duration pollingDuration;
-  final List<String>? lookupAddresses;
+  final Duration lookupInterval;
+  final List<String> lookupAddresses;
 
-  Timer? _timer;
-  bool _internetAvailable = false;
+  late final Timer _periodicLookup;
 
   @override
   Stream<bool> get onConnectivityChanged => _streamController.stream;
   @override
-  bool get isConnected => _internetAvailable;
+  bool get isConnected => _streamController.value;
 
   NetworkAvailabilityLookupService({
-    this.lookupAddresses,
-    this.pollingDuration = const Duration(seconds: 2),
+    required this.lookupAddresses,
+    this.lookupInterval = const Duration(seconds: 2),
   }) {
-    _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
-    _connectivity.checkConnectivity().then(_handleConnectivityChange);
+    _setPeriodicPolling();
   }
 
-  Future<void> _handleConnectivityChange(ConnectivityResult event) async {
-    switch (event) {
-      case ConnectivityResult.mobile:
-      case ConnectivityResult.wifi:
-        _cancelTimer();
-        _publishConnectionStatus();
-        _setPeriodicPolling();
-        break;
-      case ConnectivityResult.none:
-        _cancelTimer();
-        _setConnectionStatus(isConnected: false);
-
-        break;
-      default:
-        throw Exception('Connectivity unavailable');
-    }
+  void _setPeriodicPolling() {
+    _periodicLookup = Timer.periodic(
+      lookupInterval,
+      (_) => checkConnection(),
+    );
   }
 
-  Future<bool> _ping(String address) async {
+  Future<bool> _isAccessible(String address) async {
     try {
       final result = await InternetAddress.lookup(address);
       final success = result.isNotEmpty && result.first.rawAddress.isNotEmpty;
       return success;
-    } on SocketException catch (_) {
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
       return false;
     }
   }
 
-  Future<bool> _checkConnection() async {
-    final successfulTries = await Future.wait<bool>([
-      for (final address in lookupAddresses!) _ping(address),
-    ]);
-    return successfulTries.any((element) => element == true);
+  Future<bool> _lookupAddresses() async {
+    final successfulTries = await Future.wait<bool>(
+      lookupAddresses.map(_isAccessible),
+    );
+    return successfulTries.any((isAccesible) => isAccesible);
   }
-
-  Future<void> _publishConnectionStatus() async {
-    final bool isConnected = await _checkConnection();
-    _internetAvailable = isConnected;
-    _streamController.sink.add(isConnected);
-  }
-
-  void _setConnectionStatus({
-    required bool isConnected,
-  }) {
-    _internetAvailable = isConnected;
-    _streamController.sink.add(isConnected);
-  }
-
-  void _setPeriodicPolling() {
-    _timer = Timer.periodic(pollingDuration, (_) => _publishConnectionStatus());
-  }
-
-  void _cancelTimer() => _timer?.cancel();
 
   @override
+  Future<bool> checkConnection() async {
+    final bool isConnected = await _lookupAddresses();
+    if (_streamController.value != isConnected) {
+      _streamController.sink.add(isConnected);
+    }
+    return isConnected;
+  }
+
+  @override
+  @override
   void dispose() {
-    _cancelTimer();
+    _periodicLookup.cancel();
     _streamController.close();
   }
 }
