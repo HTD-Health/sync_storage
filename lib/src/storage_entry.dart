@@ -282,7 +282,14 @@ class StorageEntry<T, S extends Storage<T>> {
 
     for (final cell in cellsReadyToSync) {
       /// end task when network is not available
-      if (!networkAvailable) break;
+      if (!networkAvailable) {
+        errors.add(ExceptionDetail(
+          ConnectionInterrupted(),
+          StackTrace.current,
+        ));
+
+        break;
+      }
 
       try {
         T? newElement;

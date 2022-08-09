@@ -16,10 +16,9 @@ class SyncException implements Exception {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.write('$runtimeType:\n');
+    buffer.writeln('$runtimeType:');
     for (final error in errors) {
-      buffer.write(error.toString());
-      buffer.write('\n');
+      buffer.writeln(error.toString());
     }
     return buffer.toString();
   }
@@ -33,3 +32,7 @@ class SyncLevelException extends SyncException {
     List<ExceptionDetail> errors,
   ) : super(errors);
 }
+
+/// Throws when the connection is interrupted and
+/// e.g sync action is interrupted.
+class ConnectionInterrupted implements Exception {}

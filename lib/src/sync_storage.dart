@@ -147,7 +147,14 @@ class SyncStorage {
           if (!entry.needsNetworkSync) continue;
 
           /// Stop sync task when network is no longer available.
-          if (!networkAvailable) return;
+          if (!networkAvailable) {
+            _errorStreamController.add(ExceptionDetail(
+              ConnectionInterrupted(),
+              StackTrace.current,
+            ));
+
+            return;
+          }
 
           /// sync all cells with network.
           await entry.syncElementsWithNetwork();
