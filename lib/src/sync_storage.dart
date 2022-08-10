@@ -207,6 +207,10 @@ class SyncStorage {
         'Network connection is currently not available. '
             'Waiting for connection...',
       ));
+      _errorStreamController.add(ExceptionDetail(
+        ConnectionInterrupted(),
+        StackTrace.current,
+      ));
       return;
     }
 
