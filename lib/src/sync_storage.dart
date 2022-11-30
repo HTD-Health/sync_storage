@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:sync_storage/src/core/node.dart';
-import 'package:sync_storage/src/storage_entry.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 enum SyncStorageStatus {

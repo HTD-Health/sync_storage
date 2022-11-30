@@ -2,15 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:meta/meta.dart';
-import 'package:objectid/objectid.dart';
-import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
-import 'package:sync_storage/src/serializer.dart';
-import 'package:sync_storage/src/storage/storage.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 import 'core/node.dart';
-import 'errors/errors.dart';
 import 'helpers/sync_indicator.dart';
 import 'logs/cells_logs.dart';
 
@@ -72,6 +67,7 @@ abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
 mixin EntryFetch<T, S extends Storage<T>> on Entry<T, S> {}
 
 class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
+  @override
   final String name;
 
   @override
@@ -87,6 +83,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   // final Future<void>? Function() networkUpdateCallback;
   // final StreamSink<SyncStorageLog> _logsSink;
 
+  @override
   DateTime? get lastSync => storage.config.lastSync;
   DateTime? get lastFetch => storage.config.lastFetch;
   bool get wasFetched => lastFetch != null;
@@ -98,8 +95,10 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   int get fetchAttempt => _fetchIndicator.attempt;
   bool get needsFetch => _fetchIndicator.needSync;
   bool get canFetch => _fetchIndicator.canSync;
+  @override
   bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
 
+  @override
   bool get needsElementsSync =>
       _cellsToSync.isNotEmpty &&
       // there is a chance that cell need to be synced
@@ -107,10 +106,12 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       // type of error.
       _cellsToSync.any((cell) => cell.isReadyForSync);
 
+  @override
   int get elementsToSyncCount =>
       _cellsToSync.where((e) => e.isReadyForSync).length;
 
   /// Check if [StorageEntry] contains not synced [StorageCell].
+  @override
   bool get needsNetworkSync => canFetch || needsElementsSync;
 
   /// Whether [StorageEntry] is syncing elements with network.
@@ -490,6 +491,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   /// Clears storage data.
   /// This will not cause refetch.
   /// To refetch all data use [refetch] method.
+  @override
   Future<void> clear() async {
     _logsSink.add(StorageEntryInfo(
       name,
@@ -527,6 +529,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   /// Creates new element.
   /// Wraps element with cell and request network sync.
+  @override
   Future<StorageCell<T>> createElement(T element) async {
     final cell = StorageCell<T>(element: element);
     _cellsToSync.add(cell);
