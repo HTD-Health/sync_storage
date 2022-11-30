@@ -149,81 +149,9 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   }
 
   Future<void> _syncEntriesWithNetwork() async {
-    print("SYNC");
-    return forEachDependantsLayered(
+    await forEachDependantsLayered(
       (entry) => entry.syncElementsWithNetwork(),
     );
-
-    // int? errorLevel;
-    // final errors = <ExceptionDetail>[];
-    // try {
-    //   for (final entry in sortedEntriesToSync) {
-    //     if (errorLevel != null && entry.level > errorLevel) {
-    //       throw SyncLevelException(errorLevel, errors);
-    //     }
-    //     try {
-    //       _logsStreamController.sink.add(StorageEntryInfo(
-    //         entry.name,
-    //         'Syncing "${entry.name}" entry...',
-    //       ));
-    //       // _progress.update(
-    //       //   entryName: entry.name,
-    //       //   actionIndex: _progress.currentEvent!.actionIndex + 1,
-    //       //   actionsCount: sortedEntriesToSync.length,
-    //       // );
-
-    //       // if (entry.isFetchDelayed && !entry.canFetch) {
-    //       //   errorLevel = entry.level;
-    //       //   continue;
-    //       // }
-
-    //       /// Skip this [StorageEntry], if it is syncing on its own,
-    //       /// or changes have been reverted.
-    //       if (!entry.needsNetworkSync) continue;
-
-    //       /// Stop sync task when network is no longer available.
-    //       if (!networkAvailable) {
-    //         _errorStreamController.add(ExceptionDetail(
-    //           ConnectionInterrupted(),
-    //           StackTrace.current,
-    //         ));
-
-    //         return;
-    //       }
-
-    //       /// sync all cells with network.
-    //       await entry.syncElementsWithNetwork();
-    //     } on Exception catch (err, stackTrace) {
-    //       _logsStreamController.sink.add(StorageEntryError(
-    //         entry.name,
-    //         'Caught exception while synchronizing "${entry.name}" entry.',
-    //         err,
-    //         stackTrace,
-    //       ));
-    //       _errorStreamController.add(ExceptionDetail(err, stackTrace));
-
-    //       if (errorLevel != null && entry.level > errorLevel) {
-    //         throw SyncLevelException(errorLevel, errors);
-    //       } else {
-    //         errors.add(ExceptionDetail(err, stackTrace));
-    //         errorLevel = entry.level;
-    //       }
-    //     }
-    //   }
-
-    //   /// If during sync network sync, new data were added.
-    //   /// Sync it too.
-    //   if (needsNetworkSyncWhere(maxLevel: errorLevel)) {
-    //     await _syncEntriesWithNetwork();
-    //   }
-    // } on SyncException catch (err, stackTrace) {
-    //   _logsStreamController.sink.add(SyncStorageWarning(
-    //     'sync_storage',
-    //     'Breaking sync on level="$errorLevel".',
-    //   ));
-    //   _errorStreamController.add(ExceptionDetail(err, stackTrace));
-    //   rethrow;
-    // }
   }
 
   /// Sync all entries with network when available.
@@ -266,66 +194,6 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
       _statusController.sink.add(SyncStorageStatus.idle);
     }
   }
-
-  // @Deprecated('Use dependants')
-  // Future<StorageEntry<T, S>> registerEntry<T, S extends Storage<T>>({
-  //   required String name,
-  //   required S storage,
-  //   required StorageNetworkCallbacks<T> networkCallbacks,
-  //   OnCellSyncError<T>? onCellSyncError,
-  //   OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached,
-  //   DelayDurationGetter? getDelayBeforeNextAttempt,
-  // }) async {
-  //   if (disposed) {
-  //     throw StateError('Cannot register entry. $runtimeType was disposed.');
-  //   }
-
-  //   _logsStreamController.sink
-  //       .add(SyncStorageInfo('sync_storage', 'Registering "$name" entry...'));
-
-  //   if (getEntryWithName(name) != null) {
-  //     throw ArgumentError.value(
-  //       name,
-  //       'name',
-  //       'Entry with provided name is already registered.\n'
-  //           'Instead use "getRegisteredEntry" method.',
-  //     );
-  //   }
-  //   try {
-  //     final entry = StorageEntry<T, S>(
-  //       name: name,
-  //       storage: storage,
-  //       callbacks: networkCallbacks,
-  //       // networkUpdateCallback: syncEntriesWithNetwork,
-  //       onCellSyncError: onCellSyncError,
-  //       onCellMaxAttemptsReached: onCellMaxAttemptsReached,
-  //       networkNotifier: _networkNotifier,
-  //       getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
-  //       logsSink: _logsStreamController.sink,
-  //     );
-  //     await entry.initialize();
-  //     _entries.add(entry);
-  //     final needsFetch = entry.needsFetch;
-  //     _logsStreamController.sink.add(SyncStorageInfo(
-  //       'sync_storage',
-  //       'Registered "$name" entry.\n'
-  //           'elements to sync: ${entry.cellsToSync.length},\n'
-  //           'needs fetch: ${needsFetch}.',
-  //     ));
-  //     // await syncEntriesWithNetwork();
-  //     return entry;
-  //   } on Exception catch (err, st) {
-  //     _logsStreamController.sink.add(SyncStorageError(
-  //       'sync_storage',
-  //       'Caught exception while initializing "${name}" entry.',
-  //       err,
-  //       st,
-  //     ));
-  //     _errorStreamController.add(ExceptionDetail(err, st));
-
-  //     rethrow;
-  //   }
-  // }
 
   Future<void> disposeEntryWithName(String name) async {
     final entry = getEntryWithName(name);
@@ -386,5 +254,9 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     _networkAvailabilitySubscription.cancel();
     _logsStreamController.close();
     _statusController.close();
+  }
+
+  void addEntry(Entry entry) {
+    dependants.add(entry);
   }
 }

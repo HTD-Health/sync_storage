@@ -178,15 +178,16 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   @Deprecated('In favor of syncElementsWithNetwork')
   Future<void> requestNetworkSync() async {
-    return syncElementsWithNetwork();
+    /// ? We do not want to throw an exception outside the sync storage
+    void ignoreError(dynamic _) {}
+    await syncElementsWithNetwork().catchError(ignoreError);
   }
 
   @override
   Future<void> syncElementsWithNetwork() async {
     if (isSyncing) return _networkSyncTask!.future;
     if (!_root!.networkAvailable) {
-      // TODO: remove temp
-      print('NO NETWORK');
+      // No network, sync cannot be performed
       return;
     }
 
@@ -501,6 +502,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     ));
   }
 
+  @override
   Future<void> dispose() async {
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
@@ -523,7 +525,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     _cellsToSync.add(cell);
     await storage.writeCell(cell);
     await requestNetworkSync();
-    print("CREATE");
     return cell;
   }
 

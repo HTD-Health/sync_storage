@@ -17,6 +17,7 @@ export 'src/storage/storage.dart' show Storage;
 export 'src/storage/storage_config.dart' show StorageConfig;
 export 'src/storage_entry.dart'
     show
+        Entry,
         StorageEntry,
         defaultGetDelayBeforeNextAttempt,
         StorageCell,

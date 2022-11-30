@@ -52,20 +52,21 @@ void main() {
       when(networkCallbacks.onUpdate(any, any)).thenAnswer((_) async => null);
 
       await Hive.deleteBoxFromDisk(boxName);
-
-      syncStorage = SyncStorage(
-        networkAvailabilityService: networkAvailabilityService,
-      );
       storage = HiveStorageMock(boxName, const TestElementSerializer());
 
-      entry = await syncStorage
-          .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+      entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
         name: 'test_elements',
         storage: storage,
-        networkCallbacks: networkCallbacks,
+        callbacks: networkCallbacks,
         getDelayBeforeNextAttempt: (attempt) =>
             delaysBeforeNextAttempt[attempt],
       );
+      syncStorage = SyncStorage(
+        networkAvailabilityService: networkAvailabilityService,
+        entries: [entry],
+      );
+
+      await syncStorage.initialize();
 
       await networkAvailabilityService.goOnline();
 
@@ -339,6 +340,7 @@ void main() {
           MockedNetworkAvailabilityService(initialIsConnected: false);
       final syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
+        entries: [],
       );
       late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry1;
       late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry2;
@@ -355,23 +357,21 @@ void main() {
           const TestElementSerializer(),
         );
 
-        entry1 = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry1 = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: 'box1',
           storage: storage1!,
-          networkCallbacks: networkCallbacks,
+          callbacks: networkCallbacks,
         );
-        entry2 = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry2 = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: 'box2',
           storage: storage2!,
-          networkCallbacks: networkCallbacks,
+          callbacks: networkCallbacks,
         );
 
-        await Future.wait([
-          entry1.initialize(),
-          entry2.initialize(),
-        ]);
+        syncStorage
+          ..addEntry(entry1)
+          ..addEntry(entry2);
+        await syncStorage.initialize();
       });
 
       tearDownAll(() async {
@@ -449,6 +449,7 @@ void main() {
         await networkAvailabilityService.goOnline();
         syncStorage = SyncStorage(
           networkAvailabilityService: networkAvailabilityService,
+          entries: [],
         );
         when(networkCallbacks!.onCreate(any)).thenAnswer((_) async => null);
         when(networkCallbacks!.onFetch())
@@ -456,8 +457,7 @@ void main() {
       });
 
       tearDown(() async {
-        Future<void> deleteStorage(StorageEntry? entry) =>
-            entry!.storage.delete();
+        Future<void> deleteStorage(Entry? entry) => entry!.storage.delete();
 
         await Future.wait<void>(syncStorage.entries.map(deleteStorage));
         await syncStorage.dispose();
@@ -471,12 +471,13 @@ void main() {
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
         final storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: boxName,
           storage: storage,
-          networkCallbacks: networkCallbacks!,
+          callbacks: networkCallbacks!,
         );
+        syncStorage.addEntry(entry);
+        await syncStorage.initialize();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
         List<StorageCell<TestElement>> cells = await storage.readAllCells();
@@ -503,12 +504,13 @@ void main() {
         /// Create entry
         /// Entry will be automatically synced with the network
         var storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: boxName,
           storage: storage,
-          networkCallbacks: networkCallbacks!,
+          callbacks: networkCallbacks!,
         );
+        syncStorage.addEntry(entry);
+        await syncStorage.initialize();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
 
@@ -535,12 +537,13 @@ void main() {
 
         /// Recreate entry
         storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: boxName,
           storage: storage,
-          networkCallbacks: networkCallbacks!,
+          callbacks: networkCallbacks!,
         );
+        syncStorage.addEntry(entry);
+        await syncStorage.initialize();
 
         /// Make sure that entry was not fetched again
         verifyNever(networkCallbacks!.onFetch()).called(0);
@@ -560,12 +563,13 @@ void main() {
         );
 
         /// Create entry
-        entry = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
           name: 'onFetch_offline_test',
           storage: storage,
-          networkCallbacks: networkCallbacks!,
+          callbacks: networkCallbacks!,
         );
+        syncStorage.addEntry(entry);
+        await syncStorage.initialize();
 
         List<StorageCell<TestElement>> cells = await storage.readAllCells();
 
