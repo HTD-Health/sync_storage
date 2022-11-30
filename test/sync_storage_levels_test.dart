@@ -82,7 +82,7 @@ void main() {
         'Do not sync cells that with larger levels '
         'when exception occurred in lower level', () async {
       final errorEntry = getEntryWithLevel(2)!;
-      when((errorEntry.networkCallbacks as MockStorageNetworkCallbacks)
+      when((errorEntry.callbacks as MockStorageNetworkCallbacks)
               .onCreate(any))
           .thenThrow(const SyncException([]));
 
@@ -125,7 +125,7 @@ void main() {
       expect(entry.canFetch, isTrue);
 
       for (final entry in entries) {
-        when(entry!.networkCallbacks.onFetch()).thenAnswer((_) async => [
+        when(entry!.callbacks.onFetch()).thenAnswer((_) async => [
               const TestElement(1),
               const TestElement(2),
               const TestElement(3),
@@ -133,7 +133,7 @@ void main() {
             ]);
       }
 
-      when(entry.networkCallbacks.onFetch()).thenThrow(const SyncException([]));
+      when(entry.callbacks.onFetch()).thenThrow(const SyncException([]));
 
       await networkAvailabilityService.goOnline();
 
@@ -161,7 +161,7 @@ void main() {
       /// Only one entry with level 2 is not fetched
       expect(notFetchedLevel2Count, equals(1));
 
-      when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
+      when(entry.callbacks.onFetch()).thenAnswer((_) async => [
             const TestElement(1),
             const TestElement(2),
             const TestElement(3),

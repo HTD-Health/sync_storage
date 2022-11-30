@@ -1,19 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:objectid/objectid.dart';
 import 'package:sync_storage/src/callbacks/storage_network_callbacks.dart';
 import 'package:sync_storage/src/serializer.dart';
 import 'package:sync_storage/src/storage/storage.dart';
+import 'package:sync_storage/src/sync_storage.dart';
+import 'package:sync_storage/sync_storage.dart';
 
+import 'core/node.dart';
 import 'errors/errors.dart';
 import 'helpers/sync_indicator.dart';
 import 'logs/cells_logs.dart';
-import 'logs/logs.dart';
+
 import 'logs/storage_entry_logs.dart';
-import 'sync_storage.dart';
 
 part 'storage_cell.dart';
 
@@ -40,38 +41,49 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
   }
 }
 
-class StorageEntry<T, S extends Storage<T>> {
+/// WIP:
+/// Create [StorageEntry] interface
+abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
+  S get storage;
+  StorageNetworkCallbacks<T> get callbacks;
+
+  int get elementsToSyncCount;
+  bool get needsNetworkSync;
+  bool get isFetchDelayed;
+  DateTime? get lastSync;
+
+  Future<void> initialize(SyncContext context);
+
+  Future<void> syncElementsWithNetwork();
+
+  /// Remove all data and fetch new
+  Future<void> refetch();
+
+  Future<void> dispose();
+}
+
+/// TODO: Extract fetch functionality here
+mixin EntryFetch<T, S extends Storage<T>> on Entry<T, S> {}
+
+class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   final String name;
 
-  /// Indicates entry sync priority. Entries with lower level will be
-  /// fetched / synced first.
-  ///
-  /// Long story short:
-  /// If entries with level `0` are not synced. Entries with greater levels
-  /// (`1`, `2`, `3` and so on) will not be synced too.
-  ///
-  /// It could be helpful for maintaining database relations.
-  /// For example elements with level `1` are nested in elements with level
-  /// `0`. So it is not possible to store level `1` element when its' parent
-  /// (element with level `0`) does not exist (is not fetched).
-  ///
-  /// By default, all entries have level set to `0`.
-  final int level;
+  @override
   final S storage;
-  final StorageNetworkCallbacks<T> networkCallbacks;
+  @override
+  final StorageNetworkCallbacks<T> callbacks;
+  @override
+  final List<StorageEntry> dependants;
+
   final OnCellSyncError<T>? onCellSyncError;
   final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
-  final bool debug;
   final DelayDurationGetter getDelayBeforeNextAttempt;
-  final Future<void>? Function() networkUpdateCallback;
-  final StreamSink<SyncStorageLog> _logsSink;
+  // final Future<void>? Function() networkUpdateCallback;
+  // final StreamSink<SyncStorageLog> _logsSink;
 
   DateTime? get lastSync => storage.config.lastSync;
   DateTime? get lastFetch => storage.config.lastFetch;
   bool get wasFetched => lastFetch != null;
-
-  bool get networkAvailable => networkNotifier!.value;
-  final ValueNotifier<bool>? networkNotifier;
 
   Completer<void>? _networkSyncTask;
 
@@ -109,10 +121,10 @@ class StorageEntry<T, S extends Storage<T>> {
 
   StorageEntry({
     required this.name,
-    int? level,
+    this.dependants = const [],
     required this.storage,
-    required this.networkCallbacks,
-    required this.networkUpdateCallback,
+    required this.callbacks,
+    // required this.networkUpdateCallback,
 
     /// called on every cell network sync error
     this.onCellSyncError,
@@ -120,28 +132,38 @@ class StorageEntry<T, S extends Storage<T>> {
     /// called on every cell max sync attempts reached
     this.onCellMaxAttemptsReached,
 
-    /// indicates network connection
-    this.networkNotifier,
-
-    /// if true, logs are printed to the console
-    this.debug = false,
-    required StreamSink<SyncStorageLog> logsSink,
-
     /// Returns duration that will be used to delayed
     /// next sync attempt for cell.
     DelayDurationGetter? getDelayBeforeNextAttempt,
-  })  : _logsSink = logsSink,
-        getDelayBeforeNextAttempt =
+  })  : getDelayBeforeNextAttempt =
             getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
-        level = level ?? 0,
         _fetchIndicator = SyncIndicator(
           getDelay:
               getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
           needSync: false,
         );
 
+  SyncRoot? _root;
+  StreamSink<SyncStorageLog> get _logsSink => _root!.logsSink;
+
+  @override
+  Future<void> initialize(SyncContext context) async {
+    _root = context.root;
+
+    await storage.initialize();
+    _fetchIndicator.reset(needSync: storage.config.needsFetch);
+    // TODO: Propably there is no need for that
+    // we can read them on demand during the sync process.
+    _cellsToSync = (await storage.readNotSyncedCells()).toList();
+
+    await forEachDependantsLayered(
+      (d) => d.initialize(context),
+      singleLayer: true,
+    );
+  }
+
   Future<List<StorageCell<T>>?> _fetchAllElementsFromNetwork() async {
-    final data = await networkCallbacks.onFetch();
+    final data = await callbacks.onFetch();
     if (data == null) {
       return null;
     }
@@ -154,24 +176,20 @@ class StorageEntry<T, S extends Storage<T>> {
     return cells;
   }
 
-  Future<void> initialize() async {
-    await storage.initialize();
-    _fetchIndicator.reset(needSync: storage.config.needsFetch);
-    _cellsToSync = (await storage.readNotSyncedCells()).toList();
-  }
-
-  /// Request network sync from sync_storage
+  @Deprecated('In favor of syncElementsWithNetwork')
   Future<void> requestNetworkSync() async {
-    if (isSyncing) {
-      return _networkSyncTask!.future;
-    } else if (needsNetworkSync) {
-      await networkUpdateCallback();
-    }
+    return syncElementsWithNetwork();
   }
 
-  /// Called externally by [SyncStorage]. Should not be called by user.
+  @override
   Future<void> syncElementsWithNetwork() async {
     if (isSyncing) return _networkSyncTask!.future;
+    if (!_root!.networkAvailable) {
+      // TODO: remove temp
+      print('NO NETWORK');
+      return;
+    }
+
     _networkSyncTask = Completer<void>();
 
     try {
@@ -239,9 +257,11 @@ class StorageEntry<T, S extends Storage<T>> {
       rethrow;
     } finally {
       _networkSyncTask!.complete();
+      _networkSyncTask = null;
     }
   }
 
+  @override
   Future<void> refetch() async {
     _logsSink.add(StorageEntryInfo(
       this.name,
@@ -282,7 +302,7 @@ class StorageEntry<T, S extends Storage<T>> {
 
     for (final cell in cellsReadyToSync) {
       /// end task when network is not available
-      if (!networkAvailable) {
+      if (!_root!.networkAvailable) {
         errors.add(ExceptionDetail(
           ConnectionInterrupted(),
           StackTrace.current,
@@ -304,7 +324,7 @@ class StorageEntry<T, S extends Storage<T>> {
             ));
 
             /// Make CREATE request
-            newElement = await networkCallbacks.onCreate(cell.element);
+            newElement = await callbacks.onCreate(cell.element);
 
             break;
           case SyncAction.update:
@@ -317,7 +337,7 @@ class StorageEntry<T, S extends Storage<T>> {
             ));
 
             /// Make UPDATE request
-            newElement = await networkCallbacks.onUpdate(
+            newElement = await callbacks.onUpdate(
               cell.oldElement!,
               cell.element,
             );
@@ -335,7 +355,7 @@ class StorageEntry<T, S extends Storage<T>> {
             /// if cell was synced (it exists on the network),
             /// remove its representation from the network
             if (cell.wasSynced) {
-              await networkCallbacks.onDelete(cell.element);
+              await callbacks.onDelete(cell.element);
             }
             break;
 
@@ -372,7 +392,7 @@ class StorageEntry<T, S extends Storage<T>> {
         }
 
         // After successfull sync action. Cell is marked as synced.
-        cell.markAsSynced();
+        cell.markSynced();
 
         _logsSink.add(CellInfo(
           this.name,
@@ -435,7 +455,7 @@ class StorageEntry<T, S extends Storage<T>> {
     }
 
     /// If new changes to elements have been made sync them with network.
-    if (needsElementsSync && networkAvailable) {
+    if (needsElementsSync && _root!.networkAvailable) {
       await _syncElementsWithNetwork();
     } else {
       await storage.writeConfig(storage.config.copyWith(
@@ -503,6 +523,7 @@ class StorageEntry<T, S extends Storage<T>> {
     _cellsToSync.add(cell);
     await storage.writeCell(cell);
     await requestNetworkSync();
+    print("CREATE");
     return cell;
   }
 
@@ -549,7 +570,7 @@ class StorageEntry<T, S extends Storage<T>> {
       throw StateError('Provided StorageCell is already queued for sync.');
     }
 
-    cell.markAsSynced();
+    cell.markSynced();
     await storage.writeCell(cell);
   }
 
@@ -604,7 +625,7 @@ class StorageEntry<T, S extends Storage<T>> {
     }
 
     if (cell.wasSynced) {
-      cell.markAsDeleted();
+      cell.markDeleted();
 
       /// save updated cell with delete flag
       /// Cell will be removed from storage after successfull delete callback.

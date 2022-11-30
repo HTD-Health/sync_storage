@@ -198,7 +198,7 @@ void main() {
       expect(cell.wasSynced, isFalse);
       expect(cell.lastSync, isNull);
 
-      cell.markAsSynced();
+      cell.markSynced();
       expect(cell.actionNeeded, equals(SyncAction.none));
       expect(cell.needsNetworkSync, isFalse);
       expect(cell.wasSynced, isTrue);
@@ -212,7 +212,7 @@ void main() {
         expect(cell.actionNeeded, equals(SyncAction.create));
         expect(cell.deleted, isFalse);
 
-        cell.markAsDeleted();
+        cell.markDeleted();
 
         expect(cell.deleted, isTrue);
         expect(cell.needsNetworkSync, isTrue);
@@ -221,13 +221,13 @@ void main() {
 
       test('works correctly for updated cell', () {
         final cell = StorageCell(element: const TestElement(1));
-        cell.markAsSynced();
+        cell.markSynced();
         expect(cell.actionNeeded, equals(SyncAction.none));
 
         cell.updateElement(const TestElement(2));
         expect(cell.actionNeeded, equals(SyncAction.update));
 
-        cell.markAsDeleted();
+        cell.markDeleted();
 
         expect(cell.deleted, isTrue);
         expect(cell.actionNeeded, equals(SyncAction.delete));
@@ -241,7 +241,7 @@ void main() {
         expect(cell.actionNeeded, equals(SyncAction.create));
         expect(cell.oldElement, isNull);
 
-        cell.markAsSynced();
+        cell.markSynced();
 
         expect(cell.actionNeeded, equals(SyncAction.none));
 
@@ -254,7 +254,7 @@ void main() {
 
       test('Cannot update deleted cell', () {
         final cell = StorageCell(element: const TestElement(1));
-        cell.markAsDeleted();
+        cell.markDeleted();
         expect(cell.actionNeeded, equals(SyncAction.delete));
         expect(cell.needsNetworkSync, isTrue);
 

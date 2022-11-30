@@ -2,6 +2,7 @@ part of './storage_entry.dart';
 
 typedef DelayDurationGetter = Duration Function(int attempt);
 
+/// Synchronization action that is required for [StorageCell].
 enum SyncAction {
   create,
   update,
@@ -140,18 +141,18 @@ class StorageCell<T> {
   bool get isReadyForSync => !isDelayed && needsNetworkSync;
 
   /// Marking this cell as ready for update.
-  void markAsUpdateNeeded() {
+  void markUpdateNeeded() {
     _updatedAt = DateTime.now();
   }
 
   /// Mark element as synced with network.
-  void markAsSynced() {
+  void markSynced() {
     _oldElement = null;
     _lastSync = DateTime.now();
     resetSyncAttemptsCount();
   }
 
-  void markAsDeleted() {
+  void markDeleted() {
     if (!_deleted) {
       _deleted = true;
       _updatedAt = DateTime.now();
@@ -181,6 +182,7 @@ class StorageCell<T> {
     }
   }
 
+  @deprecated
   StorageCell<T> copy() {
     return StorageCell<T>(
       id: id,
@@ -195,6 +197,7 @@ class StorageCell<T> {
     );
   }
 
+  @deprecated
   String toJson(Serializer<T?> serializer) {
     final jsonMap = <String, dynamic>{
       'id': id.hexString,
@@ -211,6 +214,7 @@ class StorageCell<T> {
     return json.encode(jsonMap);
   }
 
+  @deprecated
   factory StorageCell.fromJson(String data, Serializer<T> serializer) {
     final dynamic decodedJson = json.decode(data);
 

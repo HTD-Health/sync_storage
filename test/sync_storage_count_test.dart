@@ -61,10 +61,6 @@ void main() {
       }
     }
 
-    syncStorage = SyncStorage(
-      networkAvailabilityService: networkAvailabilityService,
-    );
-
     storages
       ..clear()
       ..addAll([
@@ -76,14 +72,20 @@ void main() {
       ..clear()
       ..addAll([
         for (int i = 0; i < boxNames.length; i++)
-          await syncStorage
-              .registerEntry<TestElement, HiveStorageMock<TestElement>>(
+          StorageEntry<TestElement, HiveStorageMock<TestElement>>(
             name: boxNames[i],
             storage: storages[i],
-            networkCallbacks: networkCallbacks,
+            callbacks: networkCallbacks,
             getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
           )
       ]);
+
+    syncStorage = SyncStorage(
+      entries: entries,
+      networkAvailabilityService: networkAvailabilityService,
+    );
+
+    await syncStorage.initialize();
 
     await networkAvailabilityService.goOffline();
   });
@@ -126,6 +128,7 @@ void main() {
 
     await entries.first.createElement(const TestElement(0));
     expect(syncStorage.lastSync, isA<DateTime>());
+
     expect(syncStorage.lastSync!.isAfter(lastSync), isTrue);
     expect(entries.last.lastSync!.isBefore(syncStorage.lastSync!), isTrue);
   });
