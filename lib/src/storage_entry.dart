@@ -44,6 +44,7 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
 /// WIP:
 /// Create [StorageEntry] interface
 abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
+  String get name;
   S get storage;
   StorageNetworkCallbacks<T> get callbacks;
 
@@ -51,10 +52,15 @@ abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
   bool get needsNetworkSync;
   bool get isFetchDelayed;
   DateTime? get lastSync;
+  bool get needsElementsSync;
 
   Future<void> initialize(SyncContext context);
 
   Future<void> syncElementsWithNetwork();
+
+  Future<StorageCell<T>> createElement(T element);
+
+  Future<void> clear();
 
   /// Remove all data and fetch new
   Future<void> refetch();
@@ -180,6 +186,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   Future<void> requestNetworkSync() async {
     /// ? We do not want to throw an exception outside the sync storage
     void ignoreError(dynamic _) {}
+
     await syncElementsWithNetwork().catchError(ignoreError);
   }
 

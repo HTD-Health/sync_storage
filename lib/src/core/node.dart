@@ -9,7 +9,7 @@ abstract class Node<T extends Node<T>> {
   Iterable<T> traverse() sync* {
     for (final dependant in dependants) {
       yield dependant;
-      yield* dependant.dependants;
+      yield* dependant.traverse();
     }
   }
 
