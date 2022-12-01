@@ -213,8 +213,6 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     }
   }
 
-  @protected
-  @visibleForTesting
   Future<void> disposeAllEntries() async {
     for (final entry in traverse()) {
       await entry.dispose();
