@@ -20,7 +20,7 @@ StorageEntry createEntry({
       .thenAnswer((realInvocation) => Future.value(null));
   when(callbacks.onFetch()).thenAnswer((realInvocation) => Future.value([]));
   return StorageEntry<TestElement, HiveStorageMock<TestElement>>(
-    dependants: dependants,
+    entries: dependants,
     name: name,
     getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
     storage: storage,

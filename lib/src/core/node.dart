@@ -3,11 +3,11 @@ import 'dart:async';
 typedef NodeCallback<T> = FutureOr<void> Function(T value);
 
 abstract class Node<T extends Node<T>> {
-  List<T> get dependants;
+  List<T> get entries;
 
-  /// Traverses [dependants] using the traversal pre-order (NLR) algorithm.
+  /// Traverses [entries] using the traversal pre-order (NLR) algorithm.
   Iterable<T> traverse() sync* {
-    for (final dependant in dependants) {
+    for (final dependant in entries) {
       yield dependant;
       yield* dependant.traverse();
     }
@@ -26,7 +26,7 @@ abstract class Node<T extends Node<T>> {
     bool singleLayer = false,
   }) {
     return Future.wait<void>(
-      dependants.map((d) async {
+      entries.map((d) async {
         await callback(d);
 
         if (!singleLayer) {

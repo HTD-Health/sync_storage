@@ -59,10 +59,8 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   SyncStorageStatus get status => _statusController.value;
 
   final List<Entry> _entries;
-  @Deprecated('In favor of dependants')
-  List<Entry> get entries => _entries;
   @override
-  List<Entry> get dependants => _entries;
+  List<Entry> get entries => _entries;
 
   final NetworkAvailabilityService networkAvailabilityService;
   late StreamSubscription<bool> _networkAvailabilitySubscription;
@@ -117,8 +115,8 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   }
 
   SyncStorage({
-    required List<Entry> entries,
     required this.networkAvailabilityService,
+    List<Entry> entries = const [],
     this.debug = false,
   }) : _entries = entries {
     _networkNotifier.value = networkAvailabilityService.isConnected;
@@ -256,6 +254,10 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   }
 
   void addEntry(Entry entry) {
-    dependants.add(entry);
+    entries.add(entry);
+  }
+
+  void addEntries(List<Entry> entries) {
+    entries.addAll(entries);
   }
 }
