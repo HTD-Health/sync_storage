@@ -113,9 +113,9 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
 
   SyncStorage({
     required this.networkAvailabilityService,
-    List<Entry> children = const [],
+    List<Entry>? children,
     this.debug = false,
-  }) : super(children: children) {
+  }) : super(children: children ?? []) {
     _networkNotifier.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
