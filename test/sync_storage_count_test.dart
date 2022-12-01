@@ -81,7 +81,7 @@ void main() {
       ]);
 
     syncStorage = SyncStorage(
-      entries: entries,
+      children: entries,
       networkAvailabilityService: networkAvailabilityService,
     );
 

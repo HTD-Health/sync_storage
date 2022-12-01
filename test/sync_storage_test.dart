@@ -63,7 +63,7 @@ void main() {
       );
       syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
-        entries: [entry],
+        children: [entry],
       );
 
       await syncStorage.initialize();
@@ -340,7 +340,7 @@ void main() {
           MockedNetworkAvailabilityService(initialIsConnected: false);
       final syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
-        entries: [],
+        children: [],
       );
       late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry1;
       late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry2;
@@ -369,8 +369,8 @@ void main() {
         );
 
         syncStorage
-          ..addEntry(entry1)
-          ..addEntry(entry2);
+          ..addChild(entry1)
+          ..addChild(entry2);
         await syncStorage.initialize();
       });
 
@@ -449,7 +449,7 @@ void main() {
         await networkAvailabilityService.goOnline();
         syncStorage = SyncStorage(
           networkAvailabilityService: networkAvailabilityService,
-          entries: [],
+          children: [],
         );
         when(networkCallbacks!.onCreate(any)).thenAnswer((_) async => null);
         when(networkCallbacks!.onFetch())
@@ -459,7 +459,7 @@ void main() {
       tearDown(() async {
         Future<void> deleteStorage(Entry? entry) => entry!.storage.delete();
 
-        await Future.wait<void>(syncStorage.entries.map(deleteStorage));
+        await Future.wait<void>(syncStorage.children.map(deleteStorage));
         await syncStorage.dispose();
         reset(networkCallbacks);
       });
@@ -476,7 +476,7 @@ void main() {
           storage: storage,
           callbacks: networkCallbacks!,
         );
-        syncStorage.addEntry(entry);
+        syncStorage.addChild(entry);
         await syncStorage.initialize();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
@@ -509,7 +509,7 @@ void main() {
           storage: storage,
           callbacks: networkCallbacks!,
         );
-        syncStorage.addEntry(entry);
+        syncStorage.addChild(entry);
         await syncStorage.initialize();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
@@ -542,7 +542,7 @@ void main() {
           storage: storage,
           callbacks: networkCallbacks!,
         );
-        syncStorage.addEntry(entry);
+        syncStorage.addChild(entry);
         await syncStorage.initialize();
 
         /// Make sure that entry was not fetched again
@@ -568,7 +568,7 @@ void main() {
           storage: storage,
           callbacks: networkCallbacks!,
         );
-        syncStorage.addEntry(entry);
+        syncStorage.addChild(entry);
         await syncStorage.initialize();
 
         List<StorageCell<TestElement>> cells = await storage.readAllCells();

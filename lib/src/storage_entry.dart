@@ -39,6 +39,10 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
 /// WIP:
 /// Create [StorageEntry] interface
 abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
+  Entry({
+    List<Entry<dynamic, Storage>>? children,
+  }) : super(children: children ?? []);
+
   String get name;
   S get storage;
   StorageNetworkCallbacks<T> get callbacks;
@@ -75,7 +79,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   @override
   final StorageNetworkCallbacks<T> callbacks;
   @override
-  final List<StorageEntry> entries;
+  final List<StorageEntry> children;
 
   final OnCellSyncError<T>? onCellSyncError;
   final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
@@ -128,7 +132,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   StorageEntry({
     required this.name,
-    this.entries = const [],
+    this.children = const [],
     required this.storage,
     required this.callbacks,
     // required this.networkUpdateCallback,

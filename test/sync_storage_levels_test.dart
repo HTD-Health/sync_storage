@@ -20,7 +20,7 @@ StorageEntry createEntry({
       .thenAnswer((realInvocation) => Future.value(null));
   when(callbacks.onFetch()).thenAnswer((realInvocation) => Future.value([]));
   return StorageEntry<TestElement, HiveStorageMock<TestElement>>(
-    entries: dependants,
+    children: dependants,
     name: name,
     getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
     storage: storage,
@@ -38,7 +38,7 @@ void main() {
     setUpAll(() async {
       syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
-        entries: [
+        children: [
           createEntry(
             name: '0',
             dependants: [
@@ -68,11 +68,11 @@ void main() {
     });
 
     tearDownAll(() async {
-      await syncStorage.dispose();
       await Future.wait([
         for (final entry in syncStorage.traverse())
           Hive.deleteBoxFromDisk((entry.storage as HiveStorage).boxName),
       ]);
+      await syncStorage.dispose();
     });
 
     test(

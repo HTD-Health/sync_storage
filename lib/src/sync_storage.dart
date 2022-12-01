@@ -58,10 +58,6 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   Stream<SyncStorageStatus> get statuses => _statusController.stream;
   SyncStorageStatus get status => _statusController.value;
 
-  final List<Entry> _entries;
-  @override
-  List<Entry> get entries => _entries;
-
   final NetworkAvailabilityService networkAvailabilityService;
   late StreamSubscription<bool> _networkAvailabilitySubscription;
 
@@ -72,7 +68,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   final _networkNotifier = ValueNotifier<bool>(false);
 
   int get elementsToSyncCount =>
-      entries.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
+      children.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
 
   Completer<void>? _networkSyncTask;
 
@@ -84,7 +80,8 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
       _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
   /// Check if [SyncStorage] contains not synced [StorageEntry].
-  bool get needsNetworkSync => _entries.any((entry) => entry.needsNetworkSync);
+  bool get needsNetworkSync =>
+      traverse().any((entry) => entry.needsNetworkSync);
 
   // bool needsNetworkSyncWhere({required int? maxLevel}) {
   //   if (maxLevel == null) {
@@ -96,7 +93,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   //   }
   // }
 
-  List<Entry> get entriesToSync => _entries
+  List<Entry> get entriesToSync => traverse()
       // entries with fetch delayed needs to be added for
       // level functionality.
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
@@ -116,9 +113,9 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
 
   SyncStorage({
     required this.networkAvailabilityService,
-    List<Entry> entries = const [],
+    List<Entry> children = const [],
     this.debug = false,
-  }) : _entries = entries {
+  }) : super(children: children) {
     _networkNotifier.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
@@ -192,51 +189,37 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     }
   }
 
-  Future<void> disposeEntryWithName(String name) async {
-    final entry = getEntryWithName(name);
-    if (entry == null) {
-      throw StateError('Entry with provided name=\"$name\" is not registered.');
-    }
-
-    _entries.remove(entry);
-    await entry.dispose();
-  }
-
-  StorageEntry? getEntryWithName(String name) => _entries
-      .cast<StorageEntry?>()
-      .firstWhere((entry) => entry!.name == name, orElse: () => null);
-
-  StorageEntry<T, S>? getRegisteredEntry<T, S extends Storage<T>>(
+  StorageEntry<T, S>? getEntryWithName<T, S extends Storage<T>>(
     String name,
   ) =>
-      _entries.cast<StorageEntry?>().firstWhere(
+      traverse().cast<StorageEntry?>().firstWhere(
             (entry) => entry is StorageEntry<T, S> && entry.name == name,
             orElse: () => null,
           ) as StorageEntry<T, S>;
 
-  Future<void> removeEntryWithName(String name) async {
-    final entry = getEntryWithName(name);
+  Future<StorageEntry<T, S>?> removeEntryWithName<T, S extends Storage<T>>(
+      String name) async {
+    final entry = getEntryWithName<T, S>(name);
     if (entry == null) {
       throw StateError('Entry with provided name=\"$name\" is not registered.');
     }
-    _entries.remove(entry);
-    await entry.dispose();
+
+    final removed = removeChild(entry, nested: true);
+
+    if (removed) {
+      return entry;
+    } else {
+      throw StateError('Unable to remove the entry.');
+    }
   }
 
   @protected
   @visibleForTesting
   Future<void> disposeAllEntries() async {
-    final entries = [..._entries];
-    _entries.clear();
-    for (final entry in entries) {
+    for (final entry in traverse()) {
       await entry.dispose();
     }
-  }
-
-  /// Dispose and remove all entries from the sync storage.
-  Future<void> clear() async {
-    await disposeAllEntries();
-    _entries.clear();
+    removeChildren(nested: true);
   }
 
   Future<void> dispose() async {
@@ -245,19 +228,12 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     }
     _statusController.sink.add(SyncStorageStatus.disposed);
 
-    await clear();
+    await disposeAllEntries();
+
     // _progress.dispose();
     _networkNotifier.dispose();
     _networkAvailabilitySubscription.cancel();
     _logsStreamController.close();
     _statusController.close();
-  }
-
-  void addEntry(Entry entry) {
-    entries.add(entry);
-  }
-
-  void addEntries(List<Entry> entries) {
-    entries.addAll(entries);
   }
 }

@@ -3,11 +3,14 @@ import 'dart:async';
 typedef NodeCallback<T> = FutureOr<void> Function(T value);
 
 abstract class Node<T extends Node<T>> {
-  List<T> get entries;
+  List<T> get children => List.unmodifiable(_children);
+  final List<T> _children;
 
-  /// Traverses [entries] using the traversal pre-order (NLR) algorithm.
+  Node({required List<T> children}) : _children = children;
+
+  /// Traverses [children] using the traversal pre-order (NLR) algorithm.
   Iterable<T> traverse() sync* {
-    for (final dependant in entries) {
+    for (final dependant in children) {
       yield dependant;
       yield* dependant.traverse();
     }
@@ -26,7 +29,7 @@ abstract class Node<T extends Node<T>> {
     bool singleLayer = false,
   }) {
     return Future.wait<void>(
-      entries.map((d) async {
+      children.map((d) async {
         await callback(d);
 
         if (!singleLayer) {
@@ -35,5 +38,34 @@ abstract class Node<T extends Node<T>> {
       }),
       eagerError: false,
     );
+  }
+
+  void addChildren(List<T> entries) {
+    _children.addAll(entries);
+  }
+
+  void addChild(T entry) {
+    _children.add(entry);
+  }
+
+  bool removeChild(T entry, {bool nested = false}) {
+    final removed = _children.remove(entry);
+
+    if (nested && !removed) {
+      for (final child in traverse()) {
+        final removed = child.removeChild(entry, nested: false);
+        if (removed) return true;
+      }
+    }
+
+    return removed;
+  }
+
+  void removeChildren({bool nested = false}) {
+    if (nested) {
+      void removeNestedChildren(T child) => child.removeChildren(nested: true);
+      _children.forEach(removeNestedChildren);
+    }
+    _children.clear();
   }
 }
