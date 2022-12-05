@@ -650,11 +650,22 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   /// This method can be used for replacing current data with
   /// data from the network.
   ///
-  /// ### This method will remove all elements even not synced.
-  /// You can use
-  /// [needsNetworkSync] property to determine whether some objects
-  /// of this entry need to be synced.
-  Future<List<StorageCell<T>>> setElements(List<T> elements) async {
+  /// As long as the [force] argument is not set to true,
+  /// this method will throw a [StateError] when there are
+  /// unsynchronized elements.
+  Future<List<StorageCell<T>>> setElements(
+    List<T> elements, {
+    bool force = false,
+  }) async {
+    if (!force && needsNetworkSync) {
+      throw StateError(
+        'Elements cannot be set because '
+        'the current data has not yet been synchronized. '
+        'To overwrite unsynchronized elements, '
+        'use this method with the `force` argument set to true.',
+      );
+    }
+
     final time = DateTime.now();
 
     final cells = elements

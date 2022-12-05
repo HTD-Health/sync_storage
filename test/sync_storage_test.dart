@@ -83,16 +83,48 @@ void main() {
     });
 
     test(
-        'setElements removes all elements that need '
+        'setElements with force=true removes all elements that need '
         'sync and do not cause network sync', () async {
-      entry.createElement(const TestElement(20));
-      entry.createElement(const TestElement(21));
+      await networkAvailabilityService.goOffline();
+
+      await entry.createElement(const TestElement(20));
+      await entry.createElement(const TestElement(21));
       expect(entry.cellsToSync, hasLength(2));
       await entry.setElements([
         for (int i = 0; i < 10; i++) TestElement(i),
-      ]);
+      ], force: true);
       expect(entry.cellsToSync, isEmpty);
       expect(entry.needsNetworkSync, isFalse);
+      verifyNever(networkCallbacks.onCreate(any)).called(0);
+      verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
+      verifyNever(networkCallbacks.onDelete(any)).called(0);
+    });
+    test(
+        'setElements with force=false throws a StateError instead of removing '
+        'all elements', () async {
+      await networkAvailabilityService.goOffline();
+
+      await entry.createElement(const TestElement(20));
+      await entry.createElement(const TestElement(21));
+      expect(entry.cellsToSync, hasLength(2));
+
+      dynamic error;
+      try {
+        await entry.setElements([
+          for (int i = 0; i < 10; i++) TestElement(i),
+        ]);
+
+        // ignore: avoid_catches_without_on_clauses
+      } catch (e) {
+        error = e;
+      }
+
+      expect(
+        error,
+        isA<StateError>(),
+      );
+      expect(entry.cellsToSync, isNotEmpty);
+      expect(entry.needsNetworkSync, isTrue);
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
       verifyNever(networkCallbacks.onDelete(any)).called(0);

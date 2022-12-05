@@ -76,8 +76,6 @@ void main() {
           ),
         );
 
-        print(cell.syncDelayedTo);
-
         expect(cell.isDelayed, isTrue);
         expect(cell.syncDelayedTo, isNotNull);
         expect(cell.needsNetworkSync, isTrue);
