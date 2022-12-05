@@ -1,3 +1,4 @@
+import 'package:sync_storage/src/storage/storage_cell_serializer.dart';
 import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 
@@ -70,8 +71,12 @@ void main() {
         expect(cell.isReadyForSync, isTrue);
 
         cell.registerSyncAttempt(
-          getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt,
+          delay: defaultGetDelayBeforeNextAttempt(
+            cell.networkSyncAttemptsCount,
+          ),
         );
+
+        print(cell.syncDelayedTo);
 
         expect(cell.isDelayed, isTrue);
         expect(cell.syncDelayedTo, isNotNull);
@@ -89,10 +94,16 @@ void main() {
       test('cannot delay already delayed cell', () async {
         final cell = StorageCell(element: const TestElement(1));
         cell.registerSyncAttempt(
-            getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt);
+          delay: defaultGetDelayBeforeNextAttempt(
+            cell.networkSyncAttemptsCount + 1,
+          ),
+        );
         expect(
           () => cell.registerSyncAttempt(
-              getDelayBeforeNextAttempt: defaultGetDelayBeforeNextAttempt),
+            delay: defaultGetDelayBeforeNextAttempt(
+              cell.networkSyncAttemptsCount + 1,
+            ),
+          ),
           throwsA(
             isA<StateError>(),
           ),
@@ -109,9 +120,7 @@ void main() {
           expect(cell.needsNetworkSync, isTrue);
           expect(cell.isReadyForSync, isTrue);
 
-          cell.registerSyncAttempt(
-            getDelayBeforeNextAttempt: (_) => const Duration(milliseconds: 100),
-          );
+          cell.registerSyncAttempt(delay: const Duration(milliseconds: 100));
 
           expect(cell.isDelayed, isTrue);
           expect(cell.syncDelayedTo, isNotNull);
@@ -122,9 +131,7 @@ void main() {
           await Future<void>.delayed(const Duration(milliseconds: 150));
         }
 
-        cell.registerSyncAttempt(
-          getDelayBeforeNextAttempt: (_) => const Duration(milliseconds: 100),
-        );
+        cell.registerSyncAttempt(delay: const Duration(milliseconds: 100));
 
         expect(cell.maxSyncAttemptsReached, isTrue);
         expect(cell.isDelayed, isTrue);
@@ -137,10 +144,11 @@ void main() {
 
     test('Serialization works correctly', () async {
       final cell = StorageCell.synced(element: const TestElement(1));
+      const encoder = StorageCellEncoder(serializer: TestElementSerializer());
+      const decoder = StorageCellDecoder(serializer: TestElementSerializer());
 
-      final jsonEncodedCell = cell.toJson(const TestElementSerializer());
-      final jsonDecodedCell =
-          StorageCell.fromJson(jsonEncodedCell, const TestElementSerializer());
+      final jsonEncodedCell = encoder.convert(cell);
+      final jsonDecodedCell = decoder.convert(jsonEncodedCell);
 
       expect(jsonDecodedCell.id, equals(cell.id));
       expect(jsonDecodedCell.createdAt, equals(cell.createdAt));

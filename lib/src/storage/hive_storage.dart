@@ -1,5 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:meta/meta.dart';
+import 'package:sync_storage/src/storage/storage_cell_serializer.dart';
 
 import '../../sync_storage.dart';
 
@@ -8,6 +9,8 @@ class HiveStorageController<T> {
   late Box<String> box;
   final String boxName;
   final Serializer<T> serializer;
+  final StorageCellEncoder<T> encoder;
+  final StorageCellDecoder<T> decoder;
 
   bool _initialized = false;
   bool get initialized => _initialized;
@@ -28,7 +31,9 @@ class HiveStorageController<T> {
     _assertNotDisposed();
   }
 
-  HiveStorageController(this.boxName, this.serializer);
+  HiveStorageController(this.boxName, this.serializer)
+      : encoder = StorageCellEncoder<T>(serializer: serializer),
+        decoder = StorageCellDecoder<T>(serializer: serializer);
 
   Future<void> initialize() async {
     if (initialized) throw StateError('Controller is already initialized.');
@@ -119,8 +124,12 @@ class HiveStorage<T> extends Storage<T> {
 
   final String boxName;
   final Serializer<T> serializer;
+  final StorageCellEncoder<T> encoder;
+  final StorageCellDecoder<T> decoder;
 
-  HiveStorage(this.boxName, this.serializer);
+  HiveStorage(this.boxName, this.serializer)
+      : encoder = StorageCellEncoder<T>(serializer: serializer),
+        decoder = StorageCellDecoder<T>(serializer: serializer);
 
   @visibleForTesting
   late LazyBox<String?> box;
@@ -155,9 +164,7 @@ class HiveStorage<T> extends Storage<T> {
         .where((dynamic key) => key != _configKey)
         .map((dynamic key) => box.get(key)));
 
-    return values
-        .map((value) => StorageCell<T>.fromJson(value!, serializer))
-        .toList();
+    return values.map((value) => decoder.convert(value!)).toList();
   }
 
   Future<void> _loadConfig() async {
@@ -208,14 +215,12 @@ class HiveStorage<T> extends Storage<T> {
   Future<StorageCell<T>?> readCell(ObjectId id) async {
     final jsonEncodedCell = await box.get(id.hexString);
 
-    return jsonEncodedCell == null
-        ? null
-        : StorageCell<T>.fromJson(jsonEncodedCell, serializer);
+    return jsonEncodedCell == null ? null : decoder.convert(jsonEncodedCell);
   }
 
   @override
   Future<void> writeCell(StorageCell<T> cell) {
-    return box.put(cell.id.hexString, cell.toJson(serializer));
+    return box.put(cell.id.hexString, encoder.convert(cell));
   }
 
   @override

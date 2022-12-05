@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:sync_storage/src/sync_storage.dart';
@@ -66,9 +65,6 @@ abstract class Entry<T, S extends Storage<T>> extends Node<Entry> {
 
   Future<void> dispose();
 }
-
-/// TODO: Extract fetch functionality here
-mixin EntryFetch<T, S extends Storage<T>> on Entry<T, S> {}
 
 class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   @override
@@ -436,7 +432,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
         /// register sync attempt on failed sync.
         final delay = cell.registerSyncAttempt(
-          getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
+          delay: getDelayBeforeNextAttempt(cell.networkSyncAttemptsCount),
         );
 
         _logsSink.add(CellSyncDelayed(
