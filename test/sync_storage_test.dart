@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -28,21 +27,14 @@ void main() {
       const Duration(microseconds: 0),
     ];
     late SyncStorage syncStorage;
-    late HiveStorageMock<TestElement> storage;
-    late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry;
+    late InMemoryStorage<TestElement> storage;
+    late StorageEntry<TestElement, InMemoryStorage<TestElement>> entry;
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
     final networkCallbacks = MockStorageNetworkCallbacks<TestElement>();
 
-    /// remove box if already exists
-    setUpAll(() async {
-      Hive.init('./');
-      await Hive.deleteBoxFromDisk(boxName);
-    });
-
     tearDownAll(() async {
       networkAvailabilityService.dispose();
-      await Hive.deleteBoxFromDisk(boxName);
     });
 
     setUp(() async {
@@ -51,10 +43,9 @@ void main() {
       when(networkCallbacks.onDelete(any)).thenAnswer((_) async {});
       when(networkCallbacks.onUpdate(any, any)).thenAnswer((_) async => null);
 
-      await Hive.deleteBoxFromDisk(boxName);
-      storage = HiveStorageMock(boxName, const TestElementSerializer());
+      storage = InMemoryStorage(boxName);
 
-      entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+      entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
         name: 'test_elements',
         storage: storage,
         callbacks: networkCallbacks,
@@ -374,27 +365,21 @@ void main() {
         networkAvailabilityService: networkAvailabilityService,
         children: [],
       );
-      late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry1;
-      late StorageEntry<TestElement, HiveStorageMock<TestElement>> entry2;
-      HiveStorageMock<TestElement>? storage1;
-      HiveStorageMock<TestElement>? storage2;
+      late StorageEntry<TestElement, InMemoryStorage<TestElement>> entry1;
+      late StorageEntry<TestElement, InMemoryStorage<TestElement>> entry2;
+      InMemoryStorage<TestElement>? storage1;
+      InMemoryStorage<TestElement>? storage2;
 
       setUpAll(() async {
-        storage1 = HiveStorageMock<TestElement>(
-          'box1',
-          const TestElementSerializer(),
-        );
-        storage2 = HiveStorageMock<TestElement>(
-          'box2',
-          const TestElementSerializer(),
-        );
+        storage1 = InMemoryStorage<TestElement>('box1');
+        storage2 = InMemoryStorage<TestElement>('box2');
 
-        entry1 = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry1 = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'box1',
           storage: storage1!,
           callbacks: networkCallbacks,
         );
-        entry2 = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry2 = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'box2',
           storage: storage2!,
           callbacks: networkCallbacks,
@@ -404,13 +389,6 @@ void main() {
           ..addChild(entry1)
           ..addChild(entry2);
         await syncStorage.initialize();
-      });
-
-      tearDownAll(() async {
-        await Future.wait([
-          Hive.deleteBoxFromDisk('box1'),
-          Hive.deleteBoxFromDisk('box2'),
-        ]);
       });
 
       test('Successfully moves cells between entries', () async {
@@ -469,10 +447,6 @@ void main() {
 
       late SyncStorage syncStorage;
 
-      tearDownAll(() async {
-        await Hive.deleteBoxFromDisk(boxName);
-      });
-
       setUpAll(() async {
         networkCallbacks = MockStorageNetworkCallbacks<TestElement>();
       });
@@ -502,8 +476,8 @@ void main() {
         await networkAvailabilityService.goOnline();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
-        final storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        final storage = InMemoryStorage<TestElement>(boxName);
+        entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: boxName,
           storage: storage,
           callbacks: networkCallbacks!,
@@ -535,8 +509,8 @@ void main() {
 
         /// Create entry
         /// Entry will be automatically synced with the network
-        var storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        var storage = InMemoryStorage<TestElement>(boxName);
+        entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: boxName,
           storage: storage,
           callbacks: networkCallbacks!,
@@ -568,8 +542,8 @@ void main() {
         await syncStorage.disposeAllEntries();
 
         /// Recreate entry
-        storage = HiveStorageMock(boxName, const TestElementSerializer());
-        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        storage = InMemoryStorage<TestElement>(boxName);
+        entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: boxName,
           storage: storage,
           callbacks: networkCallbacks!,
@@ -589,13 +563,10 @@ void main() {
         /// Go offline
         await networkAvailabilityService.goOffline();
 
-        final storage = HiveStorageMock(
-          'onFetch_offline_test',
-          const TestElementSerializer(),
-        );
+        final storage = InMemoryStorage<TestElement>('onFetch_offline_test');
 
         /// Create entry
-        entry = StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+        entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'onFetch_offline_test',
           storage: storage,
           callbacks: networkCallbacks!,

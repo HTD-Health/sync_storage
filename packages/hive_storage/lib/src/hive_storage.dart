@@ -1,16 +1,15 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_storage/hive_storage.dart';
 import 'package:meta/meta.dart';
-import 'package:sync_storage/src/storage/storage_cell_serializer.dart';
-
-import '../../sync_storage.dart';
+import 'package:sync_storage/sync_storage.dart';
 
 class HiveStorageController<T> {
   @visibleForTesting
   late Box<String> box;
   final String boxName;
   final Serializer<T> serializer;
-  final StorageCellEncoder<T> encoder;
-  final StorageCellDecoder<T> decoder;
+  final StorageCellJsonEncoder<T> encoder;
+  final StorageCellJsonDecoder<T> decoder;
 
   bool _initialized = false;
   bool get initialized => _initialized;
@@ -32,8 +31,8 @@ class HiveStorageController<T> {
   }
 
   HiveStorageController(this.boxName, this.serializer)
-      : encoder = StorageCellEncoder<T>(serializer: serializer),
-        decoder = StorageCellDecoder<T>(serializer: serializer);
+      : encoder = StorageCellJsonEncoder<T>(serializer: serializer),
+        decoder = StorageCellJsonDecoder<T>(serializer: serializer);
 
   Future<void> initialize() async {
     if (initialized) throw StateError('Controller is already initialized.');
@@ -124,12 +123,12 @@ class HiveStorage<T> extends Storage<T> {
 
   final String boxName;
   final Serializer<T> serializer;
-  final StorageCellEncoder<T> encoder;
-  final StorageCellDecoder<T> decoder;
+  final StorageCellJsonEncoder<T> encoder;
+  final StorageCellJsonDecoder<T> decoder;
 
   HiveStorage(this.boxName, this.serializer)
-      : encoder = StorageCellEncoder<T>(serializer: serializer),
-        decoder = StorageCellDecoder<T>(serializer: serializer);
+      : encoder = StorageCellJsonEncoder<T>(serializer: serializer),
+        decoder = StorageCellJsonDecoder<T>(serializer: serializer);
 
   @visibleForTesting
   late LazyBox<String?> box;

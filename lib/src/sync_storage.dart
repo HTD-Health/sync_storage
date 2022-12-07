@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:sync_storage/src/core/node.dart';
 import 'package:sync_storage/sync_storage.dart';
+
+import 'utils/utils.dart';
 
 enum SyncStorageStatus {
   idle,
@@ -62,10 +63,10 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   late StreamSubscription<bool> _networkAvailabilitySubscription;
 
   @override
-  bool get networkAvailable => _networkNotifier.value;
+  bool get networkAvailable => _networkController.value;
+  final _networkController = ValueController<bool>(false);
   @override
-  ValueNotifier<bool> get networkNotifier => _networkNotifier;
-  final _networkNotifier = ValueNotifier<bool>(false);
+  ValueNotifier<bool> get networkNotifier => _networkController.notifier;
 
   int get elementsToSyncCount =>
       children.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
@@ -116,7 +117,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     List<Entry>? children,
     this.debug = false,
   }) : super(children: children ?? []) {
-    _networkNotifier.value = networkAvailabilityService.isConnected;
+    _networkController.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
@@ -129,8 +130,8 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   }
 
   void _onNetworkChange(bool networkAvailable) {
-    if (networkAvailable != _networkNotifier.value) {
-      _networkNotifier.value = networkAvailable;
+    if (networkAvailable != networkNotifier.value) {
+      _networkController.value = networkAvailable;
       if (networkAvailable) {
         _logsStreamController.sink.add(const SyncStorageInfo(
           'sync_storage',
@@ -228,8 +229,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
 
     await disposeAllEntries();
 
-    // _progress.dispose();
-    _networkNotifier.dispose();
+    _networkController.clear();
     _networkAvailabilitySubscription.cancel();
     _logsStreamController.close();
     _statusController.close();

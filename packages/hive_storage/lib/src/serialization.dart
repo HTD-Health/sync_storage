@@ -2,10 +2,16 @@ import 'dart:convert';
 
 import 'package:sync_storage/sync_storage.dart';
 
-class StorageCellEncoder<T> extends Converter<StorageCell<T>, String> {
+abstract class Serializer<T> {
+  const Serializer();
+  String toJson(T data);
+  T fromJson(String json);
+}
+
+class StorageCellJsonEncoder<T> extends Converter<StorageCell<T>, String> {
   final Serializer<T> serializer;
 
-  const StorageCellEncoder({
+  const StorageCellJsonEncoder({
     required this.serializer,
   });
 
@@ -29,10 +35,10 @@ class StorageCellEncoder<T> extends Converter<StorageCell<T>, String> {
   }
 }
 
-class StorageCellDecoder<T> extends Converter<String, StorageCell<T>> {
+class StorageCellJsonDecoder<T> extends Converter<String, StorageCell<T>> {
   final Serializer<T> serializer;
 
-  const StorageCellDecoder({
+  const StorageCellJsonDecoder({
     required this.serializer,
   });
 

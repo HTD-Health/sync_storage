@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -28,26 +27,16 @@ class HasElementValue extends CustomMatcher {
 
 @GenerateMocks([StorageNetworkCallbacks])
 void main() {
-  final boxNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
+  final storageNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
   late SyncStorage syncStorage;
-  final List<HiveStorageMock<TestElement>> storages = [];
-  final List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries =
+  final List<InMemoryStorage<TestElement>> storages = [];
+  final List<StorageEntry<TestElement, InMemoryStorage<TestElement>>> entries =
       [];
   final networkAvailabilityService =
       MockedNetworkAvailabilityService(initialIsConnected: false);
   final networkCallbacks = MockStorageNetworkCallbacks<TestElement>();
 
-  /// remove box if already exists
-  setUpAll(() async {
-    Hive.init('./');
-  });
-
   tearDownAll(() async {
-    for (final name in boxNames) {
-      if (await Hive.boxExists(name)) {
-        await Hive.deleteBoxFromDisk(name);
-      }
-    }
     networkAvailabilityService.dispose();
   });
 
@@ -55,25 +44,18 @@ void main() {
     when(networkCallbacks.onFetch()).thenAnswer((_) async => []);
     when(networkCallbacks.onCreate(any)).thenAnswer((_) async => null);
 
-    for (final name in boxNames) {
-      if (await Hive.boxExists(name)) {
-        await Hive.deleteBoxFromDisk(name);
-      }
-    }
-
     storages
       ..clear()
       ..addAll([
-        for (final name in boxNames)
-          HiveStorageMock(name, const TestElementSerializer()),
+        for (final name in storageNames) InMemoryStorage(name),
       ]);
 
     entries
       ..clear()
       ..addAll([
-        for (int i = 0; i < boxNames.length; i++)
-          StorageEntry<TestElement, HiveStorageMock<TestElement>>(
-            name: boxNames[i],
+        for (int i = 0; i < storageNames.length; i++)
+          StorageEntry<TestElement, InMemoryStorage<TestElement>>(
+            name: storageNames[i],
             storage: storages[i],
             callbacks: networkCallbacks,
             getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,

@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -11,15 +10,12 @@ StorageEntry createEntry({
   required String name,
   List<StorageEntry> dependants = const [],
 }) {
-  final storage = HiveStorageMock<TestElement>(
-    name,
-    const TestElementSerializer(),
-  );
+  final storage = InMemoryStorage<TestElement>(name);
   final callbacks = MockStorageNetworkCallbacks<TestElement>();
   when(callbacks.onCreate(any))
       .thenAnswer((realInvocation) => Future.value(null));
   when(callbacks.onFetch()).thenAnswer((realInvocation) => Future.value([]));
-  return StorageEntry<TestElement, HiveStorageMock<TestElement>>(
+  return StorageEntry<TestElement, InMemoryStorage<TestElement>>(
     children: dependants,
     name: name,
     getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
@@ -68,10 +64,6 @@ void main() {
     });
 
     tearDownAll(() async {
-      await Future.wait([
-        for (final entry in syncStorage.traverse())
-          Hive.deleteBoxFromDisk((entry.storage as HiveStorage).boxName),
-      ]);
       await syncStorage.dispose();
     });
 

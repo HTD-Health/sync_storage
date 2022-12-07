@@ -1,4 +1,3 @@
-import 'package:sync_storage/src/storage/storage_cell_serializer.dart';
 import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 
@@ -138,33 +137,6 @@ void main() {
         expect(cell.isReadyForSync, isFalse);
         expect(cell.actionNeeded, SyncAction.create);
       });
-    });
-
-    test('Serialization works correctly', () async {
-      final cell = StorageCell.synced(element: const TestElement(1));
-      const encoder = StorageCellEncoder(serializer: TestElementSerializer());
-      const decoder = StorageCellDecoder(serializer: TestElementSerializer());
-
-      final jsonEncodedCell = encoder.convert(cell);
-      final jsonDecodedCell = decoder.convert(jsonEncodedCell);
-
-      expect(jsonDecodedCell.id, equals(cell.id));
-      expect(jsonDecodedCell.createdAt, equals(cell.createdAt));
-      expect(jsonDecodedCell.updatedAt, equals(cell.updatedAt));
-      expect(jsonDecodedCell.lastSync, equals(cell.lastSync));
-      expect(jsonDecodedCell.syncDelayedTo, equals(cell.syncDelayedTo));
-      expect(jsonDecodedCell.deleted, equals(cell.deleted));
-      expect(jsonDecodedCell.element.value, equals(cell.element.value));
-      expect(jsonDecodedCell.oldElement, equals(cell.oldElement));
-      expect(jsonDecodedCell.isReadyForSync, equals(cell.isReadyForSync));
-      expect(jsonDecodedCell.isDelayed, equals(cell.isDelayed));
-      expect(jsonDecodedCell.maxSyncAttemptsReached,
-          equals(cell.maxSyncAttemptsReached));
-      expect(jsonDecodedCell.needsNetworkSync, equals(cell.needsNetworkSync));
-      expect(jsonDecodedCell.networkSyncAttemptsCount,
-          equals(cell.networkSyncAttemptsCount));
-      expect(jsonDecodedCell.wasSynced, equals(cell.wasSynced));
-      expect(jsonDecodedCell.actionNeeded, equals(cell.actionNeeded));
     });
 
     test(

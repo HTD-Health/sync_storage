@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:hive/hive.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
@@ -43,38 +41,76 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
   }
 }
 
-class HiveStorageControllerMock<T> extends HiveStorageController<T> {
-  HiveStorageControllerMock(String boxName, Serializer<T> serializer)
-      : super(boxName, serializer);
+class InMemoryStorage<T> extends Storage<T> {
+  final String name;
+
+  final _elements = <ObjectId, StorageCell<T>>{};
+
+  InMemoryStorage(this.name);
 
   @override
-  bool initialized = false;
+  StorageConfig get config => _config;
+  StorageConfig _config = const StorageConfig(
+    needsFetch: true,
+    lastFetch: null,
+    lastSync: null,
+  );
 
-  /// override initialize to skip flutter hive initialization.
   @override
-  Future<void> initialize() async {
-    Hive.init('./');
-    box = await Hive.openBox<String>(boxName);
-    initialized = true;
+  Future<void> clear() async {
+    _elements.clear();
   }
-}
 
-class HiveStorageMock<T> extends HiveStorage<T> {
-  HiveStorageMock(String boxName, Serializer<T> serializer)
-      : super(boxName, serializer);
-
-  /// override initialize to skip flutter hive initialization.
   @override
-  // ignore: must_call_super
-  Future<void> initialize() async {
-    Hive.init('./');
+  Future<void> delete() async {
+    _elements.clear();
+  }
 
-    final storageExists = await exist();
-    if (!storageExists) {
-      await create();
-    }
+  @override
+  Future<void> deleteCell(StorageCell<T> cell) async {
+    _elements.removeWhere((id, _) => id == cell.id);
+  }
 
-    await open();
+  @override
+  Future<void> dispose() async {}
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<List<StorageCell<T>>> readAllCells() {
+    return Future.value(_elements.values.toList());
+  }
+
+  @override
+  Future<StorageCell<T>?> readCell(ObjectId id) {
+    return Future.value(_elements[id]);
+  }
+
+  @override
+  Future<List<StorageCell<T>>> readNotSyncedCells() {
+    final notSynced =
+        _elements.values.where((c) => c.needsNetworkSync).toList();
+    return Future.value(notSynced);
+  }
+
+  @override
+  Future<void> writeAllCells(List<StorageCell<T>> cells) {
+    _elements.addEntries(cells.map((c) => MapEntry(c.id, c)));
+
+    return Future<void>.value();
+  }
+
+  @override
+  Future<void> writeCell(StorageCell<T> cell) {
+    _elements[cell.id] = cell;
+    return Future<void>.value();
+  }
+
+  @override
+  Future<void> writeConfig(StorageConfig config) {
+    _config = config;
+    return Future<void>.value();
   }
 }
 
@@ -82,23 +118,4 @@ class TestElement {
   final int? value;
 
   const TestElement(this.value);
-}
-
-class TestElementSerializer extends Serializer<TestElement> {
-  const TestElementSerializer();
-
-  @override
-  TestElement fromJson(String json) {
-    final dynamic jsonMap = jsonDecode(json);
-    return TestElement(jsonMap['value']);
-  }
-
-  @override
-  String toJson(TestElement data) {
-    final jsonMap = {
-      'value': data.value,
-    };
-
-    return jsonEncode(jsonMap);
-  }
 }

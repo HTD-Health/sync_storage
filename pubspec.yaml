@@ -11,20 +11,12 @@ environment:
   sdk: ">=2.14.0 <3.0.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
-  hive: ^2.0.5
-  hive_flutter: ^1.1.0
   rxdart: ^0.27.3
   objectid: ^2.0.0
   meta: ^1.8.0
+  collection: ^1.16.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
   mockito: ^5.0.17
   build_runner: ^2.1.7
   test: any
-
-flutter:
-  uses-material-design: true
