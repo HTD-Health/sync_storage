@@ -204,7 +204,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
       throw StateError('Entry with provided name=\"$name\" is not registered.');
     }
 
-    final removed = removeChild(entry, nested: true);
+    final removed = removeChild(entry, recursive: true);
 
     if (removed) {
       return entry;
@@ -217,7 +217,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     for (final entry in traverse()) {
       await entry.dispose();
     }
-    removeChildren(nested: true);
+    removeChildren(recursive: true);
   }
 
   Future<void> dispose() async {

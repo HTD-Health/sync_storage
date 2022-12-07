@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 
+@deprecated
 class SyncProgressEvent {
   final String? entryName;
   final int actionIndex;

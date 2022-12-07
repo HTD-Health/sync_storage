@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
+import '../utils/utils.dart';
+
 typedef NodeCallback<T> = FutureOr<void> Function(T value);
 
 abstract class Node<T extends Node<T>> {
@@ -40,20 +44,91 @@ abstract class Node<T extends Node<T>> {
     );
   }
 
-  void addChildren(List<T> entries) {
-    _children.addAll(entries);
+  bool get isLocked => _isLocked;
+  bool _isLocked = false;
+
+  @protected
+  @mustCallSuper
+  void lock() {
+    if (isLocked) {
+      throw StateError('Cannot lock, already locked.');
+    }
+    _isLocked = true;
   }
 
-  void addChild(T entry) {
-    _children.add(entry);
+  @protected
+  @mustCallSuper
+  void unlock() {
+    if (!isLocked) {
+      throw StateError('Cannot unlock, not locked.');
+    }
+    _isLocked = false;
   }
 
-  bool removeChild(T entry, {bool nested = false}) {
-    final removed = _children.remove(entry);
+  /// Throws [StateError] when the current [Node] is locked.
+  @protected
+  void assertNotLocked() {
+    if (isLocked) {
+      throw StateError(
+        'This action cannot be performed when the '
+        '${getOptimizedRuntimeType(this, 'Node')} is locked.',
+      );
+    }
+  }
 
-    if (nested && !removed) {
-      for (final child in traverse()) {
-        final removed = child.removeChild(entry, nested: false);
+  /// Whether the node contains an node equal to [node].
+  ///
+  /// If [recursive] is true, the child is searched for in
+  /// the entire subtree. Defaults to `false`.
+  bool contains(T node, {bool recursive = false}) {
+    if (recursive) {
+      return traverse().contains(node);
+    } else {
+      return _children.contains(node);
+    }
+  }
+
+  /// Throws [StateError] when the current [Node] already contains [node].
+  @protected
+  void assertNotContains(T node) {
+    final containsNode = contains(node, recursive: true);
+    if (containsNode) {
+      throw StateError(
+        'This subtree already contains the following '
+        '${getOptimizedRuntimeType(node, 'node')}.',
+      );
+    }
+  }
+
+  /// Adds multiple child nodes to this node
+  ///
+  /// Throws a [StateError] if the node [isLocked].
+  @mustCallSuper
+  void addChildren(List<T> children) {
+    assertNotLocked();
+    _children.addAll(children);
+  }
+
+  /// Adds a single [child] to this node
+  ///
+  /// Throws a [StateError] if the node [isLocked].
+  @mustCallSuper
+  void addChild(T child) {
+    assertNotLocked();
+    assertNotContains(child);
+    _children.add(child);
+  }
+
+  /// Remove child from the node.
+  ///
+  /// If [recursive] is true, then [child] is
+  /// removed from all nodes in the subtree. Defaults to `false`.
+  bool removeChild(T child, {bool recursive = false}) {
+    final removed = _children.remove(child);
+
+    if (recursive && !removed) {
+      for (final node in traverse()) {
+        final removed = node.removeChild(child, recursive: false);
         if (removed) return true;
       }
     }
@@ -61,9 +136,14 @@ abstract class Node<T extends Node<T>> {
     return removed;
   }
 
-  void removeChildren({bool nested = false}) {
-    if (nested) {
-      void removeNestedChildren(T child) => child.removeChildren(nested: true);
+  /// Remove all children of this node.
+  ///
+  /// If recursive is set to true, all children of this node
+  /// will also have their children removed.
+  void removeChildren({bool recursive = false}) {
+    if (recursive) {
+      void removeNestedChildren(T child) =>
+          child.removeChildren(recursive: true);
       _children.forEach(removeNestedChildren);
     }
     _children.clear();
