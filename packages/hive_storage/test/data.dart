@@ -39,7 +39,7 @@ class HiveStorageMock<T> extends HiveStorage<T> {
 }
 
 class TestElement {
-  final int? value;
+  final int value;
 
   const TestElement(this.value);
 }

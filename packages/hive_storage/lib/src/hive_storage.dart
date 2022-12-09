@@ -1,7 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hive_storage/hive_storage.dart';
 import 'package:meta/meta.dart';
-import 'package:sync_storage/sync_storage.dart';
+import 'package:sync_storage/sync_storage.dart' hide Serializer;
 
 class HiveStorageController<T> {
   @visibleForTesting

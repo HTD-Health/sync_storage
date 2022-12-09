@@ -5,6 +5,7 @@ export 'package:objectid/objectid.dart';
 export 'src/callbacks/storage_network_callbacks.dart'
     show StorageNetworkCallbacks, NullCallbacks;
 export 'src/errors/errors.dart';
+export 'src/legacy/legacy.dart' show Serializer;
 export 'src/logs/logs.dart';
 export 'src/progress/sync_progress.dart';
 export 'src/services/network_availability_lookup_service.dart'
