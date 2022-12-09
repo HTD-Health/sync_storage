@@ -129,6 +129,14 @@ class SyncStorage extends SyncNode implements SyncRoot {
     }
   }
 
+  void _lockAllChildren() {
+    traverse().forEach((child) => child.lock());
+  }
+
+  void _unlockAllChildren() {
+    traverse().forEach((child) => child.unlock());
+  }
+
   /// Sync all entries with network when available.
   Future<void>? syncEntriesWithNetwork() async {
     _logger.i(

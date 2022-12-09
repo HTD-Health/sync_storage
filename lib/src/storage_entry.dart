@@ -117,10 +117,13 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   bool get isSyncing =>
       _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
+  // TODO: REMOVE, Read on demand
   List<StorageCell<T?>> _cellsToSync = [];
 
+  // TODO: REMOVE, Read on demand
   /// return [StorageCell]s that are saved only in the local storage.
   List<StorageCell<T>> get cellsToSync => List.unmodifiable(_cellsToSync);
+  // TODO: REMOVE, Read on demand
   List<StorageCell<T>> get cellsReadyToSync => List.unmodifiable(
       _cellsToSync.where((cell) => cell.isReadyForSync).toList());
 
@@ -171,7 +174,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     );
   }
 
-  Future<List<StorageCell<T>>?> _fetchAllElementsFromNetwork() async {
+  @protected
+  Future<List<StorageCell<T>>?> fetchElementsFromNetwork() async {
     final data = await callbacks.onFetch();
     if (data == null) {
       return null;
@@ -213,7 +217,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       if (canFetch && !needsElementsSync) {
         _logger.i('Fetching elements from the network...');
 
-        final cells = await _fetchAllElementsFromNetwork();
+        final cells = await fetchElementsFromNetwork();
         _fetchIndicator.reset(needSync: false);
 
         _logger.i('Elements fetched: count=${cells?.length}.');

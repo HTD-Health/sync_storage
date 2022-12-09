@@ -47,7 +47,6 @@ abstract class Node<T extends Node<T>> {
   bool get isLocked => _isLocked;
   bool _isLocked = false;
 
-  @protected
   @mustCallSuper
   void lock() {
     if (isLocked) {
@@ -56,7 +55,6 @@ abstract class Node<T extends Node<T>> {
     _isLocked = true;
   }
 
-  @protected
   @mustCallSuper
   void unlock() {
     if (!isLocked) {
@@ -124,6 +122,7 @@ abstract class Node<T extends Node<T>> {
   /// If [recursive] is true, then [child] is
   /// removed from all nodes in the subtree. Defaults to `false`.
   bool removeChild(T child, {bool recursive = false}) {
+    assertNotLocked();
     final removed = _children.remove(child);
 
     if (recursive && !removed) {
@@ -141,6 +140,7 @@ abstract class Node<T extends Node<T>> {
   /// If recursive is set to true, all children of this node
   /// will also have their children removed.
   void removeChildren({bool recursive = false}) {
+    assertNotLocked();
     if (recursive) {
       void removeNestedChildren(T child) =>
           child.removeChildren(recursive: true);
