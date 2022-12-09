@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 
 import '../utils/utils.dart';
 
-typedef NodeCallback<T> = FutureOr<void> Function(T value);
+typedef NodeCallback<T> = FutureOr<void> Function(Node parent, T child);
 
 abstract class Node<T extends Node<T>> {
   List<T> get children => List.unmodifiable(_children);
@@ -28,16 +28,16 @@ abstract class Node<T extends Node<T>> {
   ///
   /// If [singleLayer] is set to `true` only dependants of this instance
   /// will be called - no recurrent.
-  FutureOr<void> forEachDependantsLayered(
+  FutureOr<void> forEachChildrenLayered(
     NodeCallback<T> callback, {
     bool singleLayer = false,
   }) {
     return Future.wait<void>(
       children.map((d) async {
-        await callback(d);
+        await callback(this, d);
 
         if (!singleLayer) {
-          await d.forEachDependantsLayered(callback);
+          await d.forEachChildrenLayered(callback);
         }
       }),
       eagerError: false,

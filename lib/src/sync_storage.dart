@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
-import 'package:sync_storage/src/core/node.dart';
+import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/sync_storage.dart';
 
+import 'core/core.dart';
 import 'utils/utils.dart';
 
 enum SyncStorageStatus {
@@ -15,23 +16,26 @@ enum SyncStorageStatus {
 
 @experimental
 abstract class SyncRoot {
-  StreamSink<SyncStorageLog> get logsSink;
   ValueNotifier<bool> get networkNotifier;
 
   bool get networkAvailable;
 }
 
 class SyncContext {
+  @experimental
   final SyncRoot root;
+  final ValueNotifier<bool> networkNotifier;
 
-  SyncContext(this.root);
+  final ScopedLogger logger;
+
+  SyncContext({
+    required this.logger,
+    required this.root,
+    required this.networkNotifier,
+  });
 }
 
-class SyncStorage extends Node<Entry> implements SyncRoot {
-  @override
-  @experimental
-  StreamSink<SyncStorageLog> get logsSink => _logsStreamController.sink;
-
+class SyncStorage extends SyncNode implements SyncRoot {
   bool get disposed => status == SyncStorageStatus.disposed;
 
   /// Returns last sync date
@@ -49,8 +53,9 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
         }
       }).lastSync;
 
-  final _logsStreamController = StreamController<SyncStorageLog>.broadcast();
-  Stream<SyncStorageLog> get logs => _logsStreamController.stream;
+  final ScopedLogger _logger;
+
+  Stream<Log> get logs => _logger.logs;
   final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
   Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
@@ -73,9 +78,6 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
 
   Completer<void>? _networkSyncTask;
 
-  // Stream<SyncProgressEvent?> get progress => _progress.stream;
-  // final _progress = SyncProgress();
-
   /// Whether [SyncStorage] is syncing entries with network.
   bool get isSyncing =>
       _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
@@ -84,29 +86,21 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   bool get needsNetworkSync =>
       traverse().any((entry) => entry.needsNetworkSync);
 
-  // bool needsNetworkSyncWhere({required int? maxLevel}) {
-  //   if (maxLevel == null) {
-  //     return needsNetworkSync;
-  //   } else {
-  //     return _entries.any(
-  //       (entry) => (entry.level <= maxLevel) && entry.needsNetworkSync,
-  //     );
-  //   }
-  // }
-
   List<Entry> get entriesToSync => traverse()
       // entries with fetch delayed needs to be added for
       // level functionality.
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
       .toList();
 
-  final bool debug;
-
   Future<void> initialize() async {
-    await forEachDependantsLayered(
-      (value) => value.initialize(SyncContext(this)),
+    await forEachChildrenLayered(
+      (parent, child) => child.initialize(SyncContext(
+        root: this,
+        logger: _logger.beginScope('Entry(${child.name})'),
+        networkNotifier: networkNotifier,
+      )),
 
-      /// Dependants are responsible for its' dependants initialization
+      /// Childen are responsible for its' children initialization
       /// as the context can be scoped in the future
       singleLayer: true,
     );
@@ -115,56 +109,40 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
   SyncStorage({
     required this.networkAvailabilityService,
     List<Entry>? children,
-    this.debug = false,
-  }) : super(children: children ?? []) {
+    bool debug = false,
+  })  : _logger = ScopedLogger(printer: debug ? PlainTextPrinter() : null),
+        super(children: children ?? []) {
     _networkController.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
-
-    if (debug) {
-      _logsStreamController.stream.listen((event) {
-        print('[${event.source}] ${event.message}');
-      });
-    }
   }
 
   void _onNetworkChange(bool networkAvailable) {
     if (networkAvailable != networkNotifier.value) {
       _networkController.value = networkAvailable;
       if (networkAvailable) {
-        _logsStreamController.sink.add(const SyncStorageInfo(
-          'sync_storage',
-          'Network connection is now available.',
-        ));
+        _logger.i('Network connection is now available');
 
         syncEntriesWithNetwork();
       }
     }
   }
 
-  Future<void> _syncEntriesWithNetwork() async {
-    await forEachDependantsLayered(
-      (entry) => entry.syncElementsWithNetwork(),
-    );
-  }
-
   /// Sync all entries with network when available.
   Future<void>? syncEntriesWithNetwork() async {
-    _logsStreamController.sink.add(SyncStorageInfo(
-      'sync_storage',
+    _logger.i(
       'Requesting entries sync. Registered entries '
-          'to sync: ${entriesToSync.length}.',
-    ));
+      'to sync: ${entriesToSync.length}.',
+    );
 
     /// If there is no network connection, do not perform
     /// the network synchronization steps
     if (!networkAvailable) {
-      _logsStreamController.sink.add(const SyncStorageWarning(
-        'sync_storage',
+      _logger.w(
         'Network connection is currently not available. '
-            'Waiting for connection...',
-      ));
+        'Waiting for connection...',
+      );
       _errorStreamController.add(ExceptionDetail(
         ConnectionInterrupted(),
         StackTrace.current,
@@ -179,7 +157,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
     // _progress.start(entryName: null, actionsCount: entriesToSync.length);
     _networkSyncTask = Completer<void>();
     try {
-      await _syncEntriesWithNetwork();
+      await syncChildrenWithNetwork();
     } on Exception {
       //? Errors should not be thrown when sync failed.
 
@@ -231,7 +209,7 @@ class SyncStorage extends Node<Entry> implements SyncRoot {
 
     _networkController.clear();
     _networkAvailabilitySubscription.cancel();
-    _logsStreamController.close();
+    _logger.dispose();
     _statusController.close();
   }
 }

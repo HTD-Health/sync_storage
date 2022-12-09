@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -26,12 +28,13 @@ StorageEntry createEntry({
 
 @GenerateMocks([StorageNetworkCallbacks])
 void main() {
-  group('Entries levels', () {
+  group('Entries levels -', () {
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
     late SyncStorage syncStorage;
 
-    setUpAll(() async {
+    setUp(() async {
+      await networkAvailabilityService.goOffline();
       syncStorage = SyncStorage(
         networkAvailabilityService: networkAvailabilityService,
         children: [
@@ -53,14 +56,6 @@ void main() {
       );
 
       await syncStorage.initialize();
-    });
-
-    setUp(() async {
-      await networkAvailabilityService.goOffline();
-      for (final entry in syncStorage.traverse()) {
-        await entry.clear();
-        await entry.refetch();
-      }
     });
 
     tearDownAll(() async {
@@ -125,9 +120,13 @@ void main() {
 
       when(errorEntry.callbacks.onFetch()).thenThrow(const SyncException([]));
 
+      // print("ONLINE");
       await networkAvailabilityService.goOnline();
+      // print("AFTER");
 
+      // print("syncEntriesWithNetwork");
       await syncStorage.syncEntriesWithNetwork();
+      // print("AFTER syncEntriesWithNetwork");
 
       expect(errorEntry.fetchAttempt, equals(0));
       expect(errorEntry.needsFetch, isTrue);
