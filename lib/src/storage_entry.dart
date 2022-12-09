@@ -5,8 +5,7 @@ import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
 
-import 'core/node.dart';
-import 'core/sync_node.dart';
+import 'core/core.dart';
 import 'helpers/sync_indicator.dart';
 
 part 'storage_cell.dart';
@@ -130,7 +129,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     this.children = const [],
     required this.storage,
     required this.callbacks,
-    // required this.networkUpdateCallback,
 
     /// called on every cell network sync error
     this.onCellSyncError,
@@ -413,7 +411,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     }
   }
 
-  /// The [batchSize] (defaults to `5`) is the maximum requests that will be called in paraller
+  /// The [batchSize] (defaults to `5`) is the maximum requests
+  /// that will be called in paraller.
   @protected
   Future<void> syncElementsWithNetwork({int batchSize = 5}) async {
     _logger.i(
@@ -423,6 +422,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     bool hasError = false;
     while (needsElementsSync && _context!.root.networkAvailable) {
       try {
+        // TODO: Do not wait for all 5 requests to end
         await Future.wait<void>(cellsReadyToSync.take(batchSize).map(syncCell));
         // ignore: avoid_catches_without_on_clauses
       } catch (err) {
