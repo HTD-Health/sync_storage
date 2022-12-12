@@ -38,6 +38,10 @@ class ValueNotifier<T> {
     }
   }
 
+  Stream<T> toStream() {
+    throw UnimplementedError();
+  }
+
   void clear() {
     _listeners.clear();
   }

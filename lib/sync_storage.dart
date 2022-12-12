@@ -6,7 +6,6 @@ export 'src/callbacks/storage_network_callbacks.dart'
     show StorageNetworkCallbacks, NullCallbacks;
 export 'src/errors/errors.dart';
 export 'src/legacy/legacy.dart' show Serializer;
-export 'src/progress/sync_progress.dart';
 export 'src/services/network_availability_lookup_service.dart'
     show NetworkAvailabilityLookupService;
 export 'src/services/network_availability_service.dart'
@@ -24,3 +23,5 @@ export 'src/storage_entry.dart'
         OnCellSyncError,
         SyncAction;
 export 'src/sync_storage.dart' show SyncStorage, SyncStorageStatus;
+export 'src/utils/utils.dart'
+    show ParallelException, ValueController, ValueNotifier, parallel;

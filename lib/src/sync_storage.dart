@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:scoped_logger/scoped_logger.dart';
+import 'package:sync_storage/src/core/progress.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 import 'core/core.dart';
-import 'utils/utils.dart';
 
 enum SyncStorageStatus {
   idle,
@@ -25,10 +25,13 @@ class SyncContext {
   final ValueNotifier<bool> networkNotifier;
   bool get isNetworkAvailable => networkNotifier.value;
 
+  final ProgressController progress;
+
   final ScopedLogger logger;
 
   SyncContext({
     required this.logger,
+    required this.progress,
     required this.root,
     required this.networkNotifier,
   });
@@ -87,6 +90,9 @@ class SyncStorage extends SyncNode implements SyncRoot {
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
       .toList();
 
+  final _progress = ProgressController(SyncProgress({}));
+  ValueNotifier<SyncProgress> get progress => _progress;
+
   /// After calling this method is not possible to add more children.
   Future<void> initialize() async {
     _lockAllChildren();
@@ -94,6 +100,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
     await forEachChildrenLayered(
       (parent, child) => child.initialize(SyncContext(
         root: this,
+        progress: _progress,
         logger: _logger.beginScope('Entry(${child.name})'),
         networkNotifier: networkNotifier,
       )),
@@ -160,11 +167,22 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
     _networkSyncTask = Completer<void>();
     try {
+      traverse().forEach((e) {
+        final progress = EntrySyncProgress(
+          initialFetchRequired: e.canFetch,
+          fetchCompleted: e.canFetch,
+          initialElementsToSyncCount: e.elementsToSyncCount,
+          syncedElementsCount: 0,
+        );
+        _progress.register(e, progress);
+      });
+
       await syncChildrenWithNetwork();
     } finally {
       // _progress.end();
       _networkSyncTask!.complete();
       _statusController.sink.add(SyncStorageStatus.idle);
+      _progress.end();
     }
   }
 
@@ -197,7 +215,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
     for (final entry in traverse()) {
       await entry.dispose();
     }
-    
+
     // Unlock all children to allow their removal
     _unlockAllChildren();
     removeChildren(recursive: true);

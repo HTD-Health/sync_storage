@@ -7,7 +7,6 @@ import 'package:sync_storage/sync_storage.dart';
 
 import 'core/core.dart';
 import 'helpers/sync_indicator.dart';
-import 'utils/parallel.dart';
 
 part 'storage_cell.dart';
 
@@ -50,6 +49,7 @@ abstract class Entry<T, S extends Storage<T>> extends SyncNode {
   bool get isFetchDelayed;
   DateTime? get lastSync;
   bool get needsElementsSync;
+  bool get canFetch;
 
   Future<void> initialize(SyncContext context);
 
@@ -93,6 +93,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   DateTime? get nextFetchDelayedTo => _fetchIndicator.delayedTo;
   int get fetchAttempt => _fetchIndicator.attempt;
   bool get needsFetch => _fetchIndicator.needSync;
+  @override
   bool get canFetch => _fetchIndicator.canSync;
   @override
   bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
@@ -167,6 +168,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       (_, child) => child.initialize(SyncContext(
         logger: _logger.beginScope('Entry(${child.name})'),
         root: context.root,
+        progress: context.progress,
         networkNotifier: context.networkNotifier,
       )),
       singleLayer: true,
@@ -238,6 +240,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
           }
         }
 
+        _context!.progress.raportFetchDone(this);
         await storage.writeConfig(storage.config.copyWith(
           lastFetch: DateTime.now(),
           lastSync: DateTime.now(),
@@ -417,11 +420,13 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       }
 
       rethrow;
+    } finally {
+      _context!.progress.raportElementSynced(this);
     }
   }
 
   /// The [batchSize] (defaults to `5`) is the maximum requests
-  /// that will be called in paraller.
+  /// that will be called in parallel.
   @protected
   Future<void> syncElementsWithNetwork({int batchSize = 5}) async {
     _logger.i(
