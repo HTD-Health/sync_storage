@@ -162,7 +162,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     _fetchIndicator.reset(needSync: storage.config.needsFetch);
     // TODO: Propably there is no need for that
     // we can read them on demand during the sync process.
-    _cellsToSync = (await storage.readNotSyncedCells()).toList();
+    _cellsToSync = (await storage.readNotSynced()).toList();
 
     await forEachChildrenLayered(
       (_, child) => child.initialize(SyncContext(
@@ -229,8 +229,13 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
           /// new cells are fetched from the network.
           /// Current cells should be replaced with new one.
-          _logger.i('Writing ${cells.length} cells to the storage.');
-          await storage.writeAllCells(cells);
+          _logger.i('Replacing the cells with the ${cells.length} fetched.');
+          await storage.clear();
+
+          /// It is possible that fetch does not return any elements
+          if (cells.isNotEmpty) {
+            await storage.writeAll(cells);
+          }
         }
 
         await storage.writeConfig(storage.config.copyWith(
@@ -380,11 +385,11 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
       if (cell.deleted) {
         // deleted cell should be removed from the storage
-        await storage.deleteCell(cell);
+        await storage.delete(cell);
       } else {
         // Changes were made for current cell. It should be
         // synced with storage.
-        await storage.writeCell(cell);
+        await storage.write(cell);
       }
     } on Exception catch (err, stackTrace) {
       logger.e('Exception caught during cell sync.', err, stackTrace);
@@ -408,7 +413,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
           await removeCell(cell);
         }
       } else {
-        await storage.writeCell(cell);
+        await storage.write(cell);
       }
 
       rethrow;
@@ -452,7 +457,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   /// Cell is not deleted from the network.
   Future<void> removeCell(StorageCell<T> cell) async {
     _removeCellFromCellsToSync(cell);
-    await storage.deleteCell(cell);
+    await storage.delete(cell);
   }
 
   /// Utility functions
@@ -482,11 +487,12 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   Future<void> dispose() async {
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
+    // TODO?: Should storage be disposed by the sync_storage?
     await storage.dispose();
   }
 
   Future<void> addCell(StorageCell<T> cell) async {
-    await storage.writeCell(cell);
+    await storage.write(cell);
 
     if (cell.needsNetworkSync || cell.isDelayed) {
       _cellsToSync.add(cell);
@@ -500,7 +506,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   Future<StorageCell<T>> createElement(T element) async {
     final cell = StorageCell<T>(element: element);
     _cellsToSync.add(cell);
-    await storage.writeCell(cell);
+    await storage.write(cell);
     await requestNetworkSync();
     return cell;
   }
@@ -511,7 +517,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
         elements.map((element) => StorageCell(element: element)).toList();
     _cellsToSync.addAll(cells);
 
-    await Future.wait(cells.map(storage.writeCell));
+    await Future.wait(cells.map(storage.write));
 
     await requestNetworkSync();
     return cells;
@@ -530,7 +536,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   ) async {
     ArgumentError.checkNotNull(cell, 'cell');
 
-    final currentCell = await storage.readCell(cell.id);
+    final currentCell = await storage.read(cell.id);
     if (currentCell == null) {
       throw ArgumentError.value(
         cell,
@@ -549,7 +555,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     }
 
     cell.markSynced();
-    await storage.writeCell(cell);
+    await storage.write(cell);
   }
 
   /// Update element in storage and network.
@@ -566,7 +572,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       );
     }
 
-    final currentCell = await storage.readCell(cell.id);
+    final currentCell = await storage.read(cell.id);
     if (currentCell == null) {
       throw ArgumentError.value(
         cell,
@@ -585,13 +591,13 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       _cellsToSync.add(cell);
     }
 
-    await storage.writeCell(cell);
+    await storage.write(cell);
     await requestNetworkSync();
   }
 
   /// Deletes current cell from storage and network.
   Future<void> deleteCell(StorageCell<T> cell) async {
-    final currentCell = await storage.readCell(cell.id);
+    final currentCell = await storage.read(cell.id);
 
     if (currentCell == null) {
       throw ArgumentError.value(
@@ -644,7 +650,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     _cellsToSync.clear();
 
-    await storage.writeAllCells(cells);
+    await storage.writeAll(cells);
 
     return cells.toList();
   }

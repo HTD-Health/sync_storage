@@ -62,12 +62,7 @@ class InMemoryStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<void> delete() async {
-    _elements.clear();
-  }
-
-  @override
-  Future<void> deleteCell(StorageCell<T> cell) async {
+  Future<void> delete(StorageCell<T> cell) async {
     _elements.removeWhere((id, _) => id == cell.id);
   }
 
@@ -78,31 +73,31 @@ class InMemoryStorage<T> extends Storage<T> {
   Future<void> initialize() async {}
 
   @override
-  Future<List<StorageCell<T>>> readAllCells() {
+  Future<List<StorageCell<T>>> readAll() {
     return Future.value(_elements.values.toList());
   }
 
   @override
-  Future<StorageCell<T>?> readCell(ObjectId id) {
+  Future<StorageCell<T>?> read(ObjectId id) {
     return Future.value(_elements[id]);
   }
 
   @override
-  Future<List<StorageCell<T>>> readNotSyncedCells() {
+  Future<List<StorageCell<T>>> readNotSynced() {
     final notSynced =
         _elements.values.where((c) => c.needsNetworkSync).toList();
     return Future.value(notSynced);
   }
 
   @override
-  Future<void> writeAllCells(List<StorageCell<T>> cells) {
+  Future<void> writeAll(List<StorageCell<T>> cells) {
     _elements.addEntries(cells.map((c) => MapEntry(c.id, c)));
 
     return Future<void>.value();
   }
 
   @override
-  Future<void> writeCell(StorageCell<T> cell) {
+  Future<void> write(StorageCell<T> cell) {
     _elements[cell.id] = cell;
     return Future<void>.value();
   }
@@ -118,4 +113,7 @@ class TestElement {
   final int? value;
 
   const TestElement(this.value);
+
+  @override
+  String toString() => 'TestElement(${value})';
 }

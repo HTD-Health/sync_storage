@@ -158,7 +158,7 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<List<StorageCell<T>>> readAllCells() async {
+  Future<List<StorageCell<T>>> readAll() async {
     final values = await Future.wait(box.keys
         .where((dynamic key) => key != _configKey)
         .map((dynamic key) => box.get(key)));
@@ -181,10 +181,8 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<void> writeAllCells(Iterable<StorageCell<T>> cells) async {
-    await box.clear();
-
-    await Future.wait(cells.map(writeCell));
+  Future<void> writeAll(Iterable<StorageCell<T>> cells) async {
+    await Future.wait(cells.map(write));
 
     await writeConfig(config);
   }
@@ -200,31 +198,30 @@ class HiveStorage<T> extends Storage<T> {
     await _loadConfig();
   }
 
-  @override
-  Future<void> delete() async {
+  Future<void> deleteFromDisk() async {
     await box.deleteFromDisk();
   }
 
   @override
-  Future<void> deleteCell(StorageCell<T> cell) {
+  Future<void> delete(StorageCell<T> cell) {
     return box.delete(cell.id.hexString);
   }
 
   @override
-  Future<StorageCell<T>?> readCell(ObjectId id) async {
+  Future<StorageCell<T>?> read(ObjectId id) async {
     final jsonEncodedCell = await box.get(id.hexString);
 
     return jsonEncodedCell == null ? null : decoder.convert(jsonEncodedCell);
   }
 
   @override
-  Future<void> writeCell(StorageCell<T> cell) {
+  Future<void> write(StorageCell<T> cell) {
     return box.put(cell.id.hexString, encoder.convert(cell));
   }
 
   @override
-  Future<List<StorageCell<T>>> readNotSyncedCells() async {
-    final cells = await readAllCells();
+  Future<List<StorageCell<T>>> readNotSynced() async {
+    final cells = await readAll();
     return cells.where((cell) => cell.needsNetworkSync).toList();
   }
 }

@@ -127,7 +127,7 @@ void main() {
       expect(entry.needsNetworkSync, isFalse);
       expect(entry.cellsToSync, isEmpty);
 
-      final List<StorageCell<TestElement>> cells = await storage.readAllCells();
+      final List<StorageCell<TestElement>> cells = await storage.readAll();
 
       expect(cells.where((cell) => cell.needsNetworkSync).isEmpty, isTrue);
 
@@ -146,7 +146,7 @@ void main() {
 
     test('Deleting works correctly', () async {
       verifyNever(networkCallbacks.onDelete(any)).called(0);
-      final List<StorageCell<TestElement>> cells = await storage.readAllCells();
+      final List<StorageCell<TestElement>> cells = await storage.readAll();
 
       final cell1 = cells.first;
       final cell2 = cells.last;
@@ -164,7 +164,7 @@ void main() {
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
 
-      expect(await storage.readAllCells(), hasLength(3));
+      expect(await storage.readAll(), hasLength(3));
     });
 
     test('Create works correctly', () async {
@@ -182,7 +182,7 @@ void main() {
       verifyNever(networkCallbacks.onDelete(any)).called(0);
       verifyNever(networkCallbacks.onUpdate(any, any)).called(0);
 
-      expect(await storage.readAllCells(), hasLength(8));
+      expect(await storage.readAll(), hasLength(8));
     });
 
     test('Update works correctly', () async {
@@ -190,7 +190,7 @@ void main() {
 
       const updatedTestElement = TestElement(200);
 
-      final List<StorageCell<TestElement>> cells = await storage.readAllCells();
+      final List<StorageCell<TestElement>> cells = await storage.readAll();
 
       final oldCell = cells.last;
       final currentElement = oldCell.element;
@@ -212,7 +212,7 @@ void main() {
       verifyNever(networkCallbacks.onDelete(any)).called(0);
 
       final List<StorageCell<TestElement>> readedCells =
-          await storage.readAllCells();
+          await storage.readAll();
       expect(readedCells, hasLength(5));
       expect(
         readedCells.last.element.value,
@@ -274,7 +274,7 @@ void main() {
 
         verifyNever(networkCallbacks.onCreate(any)).called(0);
 
-        List<StorageCell<TestElement>> savedData = await storage.readAllCells();
+        List<StorageCell<TestElement>> savedData = await storage.readAll();
 
         expect(savedData, hasLength(6));
         expect(savedData.last.needsNetworkSync, isTrue);
@@ -289,7 +289,7 @@ void main() {
         /// wait for save operation.
         await Future<void>.delayed(const Duration(milliseconds: 100));
 
-        savedData = await storage.readAllCells();
+        savedData = await storage.readAll();
 
         expect(savedData, hasLength(6));
         expect(savedData.last.needsNetworkSync, isFalse);
@@ -305,7 +305,7 @@ void main() {
           delaysBeforeNextAttempt[i] = Duration(milliseconds: 50 * i);
         }
 
-        List<StorageCell<TestElement>> cells = await storage.readAllCells();
+        List<StorageCell<TestElement>> cells = await storage.readAll();
 
         /// 5 elements in storage
         expect(cells, hasLength(5));
@@ -317,7 +317,7 @@ void main() {
         expect(entry.cellsToSync, hasLength(1));
 
         final cell = await cellFuture;
-        cells = await storage.readAllCells();
+        cells = await storage.readAll();
         expect(cells, hasLength(6));
 
         /// make sure that after each delay cells are still delayed.
@@ -342,7 +342,7 @@ void main() {
         /// after max attempts cell should be removed from the storage
         expect(entry.cellsToSync, hasLength(0));
 
-        cells = await storage.readAllCells();
+        cells = await storage.readAll();
 
         /// after [StorageCell.maxNetworkSyncAttempts] element is removed
         /// from storage.
@@ -394,8 +394,8 @@ void main() {
       test('Successfully moves cells between entries', () async {
         await networkAvailabilityService.goOnline();
 
-        List<StorageCell<TestElement>> cells1 = await storage1!.readAllCells();
-        List<StorageCell<TestElement>> cells2 = await storage2!.readAllCells();
+        List<StorageCell<TestElement>> cells1 = await storage1!.readAll();
+        List<StorageCell<TestElement>> cells2 = await storage2!.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -406,8 +406,8 @@ void main() {
         final cell = await entry1.createElement(newElement);
         verify(networkCallbacks.onCreate(newElement)).called(1);
 
-        cells1 = await storage1!.readAllCells();
-        cells2 = await storage2!.readAllCells();
+        cells1 = await storage1!.readAll();
+        cells2 = await storage2!.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -416,8 +416,8 @@ void main() {
 
         await entry1.removeCell(cell);
 
-        cells1 = await storage1!.readAllCells();
-        cells2 = await storage2!.readAllCells();
+        cells1 = await storage1!.readAll();
+        cells2 = await storage2!.readAll();
 
         expect(cell.element, equals(newElement));
         expect(entry1.needsElementsSync, isFalse);
@@ -427,8 +427,8 @@ void main() {
 
         await entry2.addCell(cell);
 
-        cells1 = await storage1!.readAllCells();
-        cells2 = await storage2!.readAllCells();
+        cells1 = await storage1!.readAll();
+        cells2 = await storage2!.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -441,7 +441,7 @@ void main() {
     });
     group('onFetch callback works correctly', () {
       const elementsToFetch = [TestElement(0), TestElement(1)];
-      const boxName = 'onFetch_test_box';
+      const storageName = 'onFetch_test_box';
 
       MockStorageNetworkCallbacks<TestElement>? networkCallbacks;
 
@@ -463,9 +463,6 @@ void main() {
       });
 
       tearDown(() async {
-        Future<void> deleteStorage(Entry? entry) => entry!.storage.delete();
-
-        await Future.wait<void>(syncStorage.children.map(deleteStorage));
         await syncStorage.dispose();
         reset(networkCallbacks);
       });
@@ -476,9 +473,9 @@ void main() {
         await networkAvailabilityService.goOnline();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
-        final storage = InMemoryStorage<TestElement>(boxName);
+        final storage = InMemoryStorage<TestElement>(storageName);
         entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
-          name: boxName,
+          name: storageName,
           storage: storage,
           callbacks: networkCallbacks!,
         );
@@ -486,12 +483,12 @@ void main() {
         await syncStorage.initialize();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
-        List<StorageCell<TestElement>> cells = await storage.readAllCells();
+        List<StorageCell<TestElement>> cells = await storage.readAll();
         expect(cells, isEmpty);
 
         await syncStorage.syncEntriesWithNetwork();
         verify(networkCallbacks!.onFetch()).called(1);
-        cells = await storage.readAllCells();
+        cells = await storage.readAll();
 
         expect(
           cells.map((e) => e.element.value).toList(),
@@ -509,9 +506,9 @@ void main() {
 
         /// Create entry
         /// Entry will be automatically synced with the network
-        var storage = InMemoryStorage<TestElement>(boxName);
+        final storage = InMemoryStorage<TestElement>(storageName);
         entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
-          name: boxName,
+          name: storageName,
           storage: storage,
           callbacks: networkCallbacks!,
         );
@@ -525,8 +522,7 @@ void main() {
         /// check whether entry is synced correctly
         verify(networkCallbacks!.onFetch()).called(1);
 
-        final List<StorageCell<TestElement>> cells =
-            await storage.readAllCells();
+        final List<StorageCell<TestElement>> cells = await storage.readAll();
         final elements = cells.map((e) => e.element).toList();
 
         expect(elements, hasLength(2));
@@ -542,9 +538,8 @@ void main() {
         await syncStorage.disposeAllEntries();
 
         /// Recreate entry
-        storage = InMemoryStorage<TestElement>(boxName);
         entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
-          name: boxName,
+          name: storageName,
           storage: storage,
           callbacks: networkCallbacks!,
         );
@@ -560,12 +555,13 @@ void main() {
       });
 
       test('Sync entry created offline correctly.', () async {
-        /// Go offline
+        // Go offline
         await networkAvailabilityService.goOffline();
 
+        // Create storage
         final storage = InMemoryStorage<TestElement>('onFetch_offline_test');
 
-        /// Create entry
+        // Create entry
         entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'onFetch_offline_test',
           storage: storage,
@@ -574,7 +570,8 @@ void main() {
         syncStorage.addChild(entry);
         await syncStorage.initialize();
 
-        List<StorageCell<TestElement>> cells = await storage.readAllCells();
+        // Get currently stored cells
+        List<StorageCell<TestElement>> cells = await storage.readAll();
 
         verifyNever(networkCallbacks!.onFetch()).called(0);
         expect(cells, hasLength(0));
@@ -591,7 +588,7 @@ void main() {
         verifyNever(networkCallbacks!.onFetch()).called(0);
         verifyNever(networkCallbacks!.onCreate(any)).called(0);
 
-        cells = await storage.readAllCells();
+        cells = await storage.readAll();
         var elements = cells.map((e) => e.element).toList();
         expect(elements, hasLength(2));
         expect(elements[0].value, equals(newElement1.value));
@@ -606,7 +603,7 @@ void main() {
         verify(networkCallbacks!.onFetch()).called(1);
 
         /// Storage data is fetched from the network
-        cells = await storage.readAllCells();
+        cells = await storage.readAll();
         elements = cells.map((e) => e.element).toList();
         expect(elements, hasLength(2));
         expect(elements[0].value, equals(elementsToFetch[0].value));

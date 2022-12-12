@@ -134,7 +134,7 @@ void main() {
 
       var entryElementsCount = {
         for (final entry in syncStorage.traverse())
-          entry.name: (await entry.storage.readAllCells()).length,
+          entry.name: (await entry.storage.readAll()).length,
       };
 
       /// Only one entry with level 2 are not fetched
@@ -164,7 +164,7 @@ void main() {
 
       entryElementsCount = {
         for (final entry in syncStorage.traverse())
-          entry.name: (await entry.storage.readAllCells()).length,
+          entry.name: (await entry.storage.readAll()).length,
       };
 
       /// All elements are fetched
