@@ -74,7 +74,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
   ValueNotifier<bool> get networkNotifier => _networkController.notifier;
 
   int get elementsToSyncCount =>
-      children.map<int>((e) => e.elementsToSyncCount).reduce((s, e) => s + e);
+      traverse().fold<int>(0, (s, e) => s + e.elementsToSyncCount);
 
   Completer<void>? _networkSyncTask;
 

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/src/sync_storage.dart';
@@ -119,7 +118,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   bool get isSyncing =>
       _networkSyncTask != null && _networkSyncTask!.isCompleted == false;
 
-  // TODO: REMOVE, Read on demand
   List<StorageCell<T?>> _cellsToSync = [];
 
   // TODO: REMOVE, Read on demand
@@ -162,9 +160,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     await storage.initialize();
     _fetchIndicator.reset(needSync: storage.config.needsFetch);
-    // TODO: Propably there is no need for that
-    // we can read them on demand during the sync process.
-    _cellsToSync = (await storage.readNotSynced()).toList();
+    // TODO?: We can read them on demand during the sync process?
+    _cellsToSync = await storage.readNotSynced();
 
     await forEachChildrenLayered(
       (_, child) => child.initialize(SyncContext(
