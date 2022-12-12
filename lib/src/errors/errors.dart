@@ -16,21 +16,12 @@ class SyncException implements Exception {
   @override
   String toString() {
     final buffer = StringBuffer();
-    buffer.writeln('$runtimeType:');
+    buffer.writeln('SyncException:');
     for (final error in errors) {
       buffer.writeln(error.toString());
     }
     return buffer.toString();
   }
-}
-
-class SyncLevelException extends SyncException {
-  final int level;
-
-  const SyncLevelException(
-    this.level,
-    List<ExceptionDetail> errors,
-  ) : super(errors);
 }
 
 /// Throws when the connection is interrupted and

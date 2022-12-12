@@ -8,6 +8,14 @@ import 'package:test/test.dart';
 import 'data.dart';
 import 'sync_storage_levels_test.mocks.dart';
 
+Future<void> executeIgnoreError(Future<void> callback()) async {
+  try {
+    await callback();
+  } on Exception {
+    // ignore
+  }
+}
+
 StorageEntry createEntry({
   required String name,
   List<StorageEntry> dependants = const [],
@@ -82,7 +90,8 @@ void main() {
 
       await networkAvailabilityService.goOnline();
       // wait for current sync end
-      await syncStorage.syncEntriesWithNetwork();
+
+      await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
       final syncStatus = {
         for (final entry in syncStorage.traverse())
@@ -120,13 +129,9 @@ void main() {
 
       when(errorEntry.callbacks.onFetch()).thenThrow(const SyncException([]));
 
-      // print("ONLINE");
       await networkAvailabilityService.goOnline();
-      // print("AFTER");
 
-      // print("syncEntriesWithNetwork");
-      await syncStorage.syncEntriesWithNetwork();
-      // print("AFTER syncEntriesWithNetwork");
+      await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
       expect(errorEntry.fetchAttempt, equals(0));
       expect(errorEntry.needsFetch, isTrue);

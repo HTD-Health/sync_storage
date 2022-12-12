@@ -199,7 +199,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   @override
   Future<void> syncWithNetwork() async {
     if (isSyncing) return _networkSyncTask!.future;
-    if (!_context!.root.networkAvailable) {
+    if (!_context!.isNetworkAvailable) {
       // No network, sync cannot be performed
       return;
     }
@@ -307,7 +307,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     final logger = _logger.beginScope('Cell(${cell.id})');
 
     /// end task when network is not available
-    if (!_context!.root.networkAvailable) {
+    if (!_context!.isNetworkAvailable) {
       _logger.w('Cannot sync cell, no network. Skipping...');
       return;
     }
@@ -429,7 +429,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     );
 
     SyncException? syncException;
-    while (needsElementsSync && _context!.root.networkAvailable) {
+    while (needsElementsSync && _context!.isNetworkAvailable) {
       try {
         // Perform multiple cell sync simultaneously.
         await parallel(syncCell, cellsReadyToSync, maxConcurrentActions: 5);

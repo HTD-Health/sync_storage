@@ -48,6 +48,7 @@ abstract class Node<T extends Node<T>> {
   bool _isLocked = false;
 
   @mustCallSuper
+  @protected
   void lock() {
     if (isLocked) {
       throw StateError('Cannot lock, already locked.');
@@ -56,6 +57,7 @@ abstract class Node<T extends Node<T>> {
   }
 
   @mustCallSuper
+  @protected
   void unlock() {
     if (!isLocked) {
       throw StateError('Cannot unlock, not locked.');

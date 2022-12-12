@@ -17,14 +17,13 @@ enum SyncStorageStatus {
 @experimental
 abstract class SyncRoot {
   ValueNotifier<bool> get networkNotifier;
-
-  bool get networkAvailable;
 }
 
 class SyncContext {
   @experimental
   final SyncRoot root;
   final ValueNotifier<bool> networkNotifier;
+  bool get isNetworkAvailable => networkNotifier.value;
 
   final ScopedLogger logger;
 
@@ -56,8 +55,6 @@ class SyncStorage extends SyncNode implements SyncRoot {
   final ScopedLogger _logger;
 
   Stream<Log> get logs => _logger.logs;
-  final _errorStreamController = StreamController<ExceptionDetail>.broadcast();
-  Stream<ExceptionDetail> get errors => _errorStreamController.stream;
 
   final _statusController =
       BehaviorSubject<SyncStorageStatus>.seeded(SyncStorageStatus.idle);
@@ -68,10 +65,8 @@ class SyncStorage extends SyncNode implements SyncRoot {
   late StreamSubscription<bool> _networkAvailabilitySubscription;
 
   @override
-  bool get networkAvailable => _networkController.value;
-  final _networkController = ValueController<bool>(false);
-  @override
-  ValueNotifier<bool> get networkNotifier => _networkController.notifier;
+  ValueNotifier<bool> get networkNotifier => _networkNotifier.notifier;
+  final _networkNotifier = ValueController<bool>(false);
 
   int get elementsToSyncCount =>
       traverse().fold<int>(0, (s, e) => s + e.elementsToSyncCount);
@@ -92,7 +87,10 @@ class SyncStorage extends SyncNode implements SyncRoot {
       .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
       .toList();
 
+  /// After calling this method is not possible to add more children.
   Future<void> initialize() async {
+    _lockAllChildren();
+
     await forEachChildrenLayered(
       (parent, child) => child.initialize(SyncContext(
         root: this,
@@ -112,7 +110,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
     bool debug = false,
   })  : _logger = ScopedLogger(printer: debug ? PlainTextPrinter() : null),
         super(children: children ?? []) {
-    _networkController.value = networkAvailabilityService.isConnected;
+    _networkNotifier.value = networkAvailabilityService.isConnected;
     _networkAvailabilitySubscription = networkAvailabilityService
         .onConnectivityChanged
         .listen(_onNetworkChange);
@@ -120,11 +118,11 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
   void _onNetworkChange(bool networkAvailable) {
     if (networkAvailable != networkNotifier.value) {
-      _networkController.value = networkAvailable;
+      _networkNotifier.value = networkAvailable;
       if (networkAvailable) {
         _logger.i('Network connection is now available');
 
-        syncEntriesWithNetwork();
+        syncEntriesWithNetwork().ignore();
       }
     }
   }
@@ -138,7 +136,9 @@ class SyncStorage extends SyncNode implements SyncRoot {
   }
 
   /// Sync all entries with network when available.
-  Future<void>? syncEntriesWithNetwork() async {
+  ///
+  /// This method may throw an exception if synchronization has been interrupted
+  Future<void> syncEntriesWithNetwork() async {
     _logger.i(
       'Requesting entries sync. Registered entries '
       'to sync: ${entriesToSync.length}.',
@@ -146,29 +146,21 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
     /// If there is no network connection, do not perform
     /// the network synchronization steps
-    if (!networkAvailable) {
+    if (!_networkNotifier.value) {
       _logger.w(
         'Network connection is currently not available. '
         'Waiting for connection...',
       );
-      _errorStreamController.add(ExceptionDetail(
-        ConnectionInterrupted(),
-        StackTrace.current,
-      ));
-      return;
+      throw ConnectionInterrupted();
     }
 
     /// If already syncing return current sync task future if available.
     if (isSyncing) return _networkSyncTask?.future;
     _statusController.sink.add(SyncStorageStatus.syncing);
 
-    // _progress.start(entryName: null, actionsCount: entriesToSync.length);
     _networkSyncTask = Completer<void>();
     try {
       await syncChildrenWithNetwork();
-    } on Exception {
-      //? Errors should not be thrown when sync failed.
-
     } finally {
       // _progress.end();
       _networkSyncTask!.complete();
@@ -200,10 +192,14 @@ class SyncStorage extends SyncNode implements SyncRoot {
     }
   }
 
+  @protected
   Future<void> disposeAllEntries() async {
     for (final entry in traverse()) {
       await entry.dispose();
     }
+    
+    // Unlock all children to allow their removal
+    _unlockAllChildren();
     removeChildren(recursive: true);
   }
 
@@ -215,7 +211,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
     await disposeAllEntries();
 
-    _networkController.clear();
+    _networkNotifier.clear();
     _networkAvailabilitySubscription.cancel();
     _logger.dispose();
     _statusController.close();

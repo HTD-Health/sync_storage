@@ -222,12 +222,12 @@ void main() {
 
     group('Offline support', () {
       test('successfully changes network state', () async {
-        expect(syncStorage.networkAvailable, isTrue);
+        expect(syncStorage.networkNotifier.value, isTrue);
         await networkAvailabilityService.goOffline();
 
         /// wait for network changes to take effect
         await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(syncStorage.networkAvailable, isFalse);
+        expect(syncStorage.networkNotifier.value, isFalse);
       });
 
       test('Make only "create" call when not synced cell was updated',
@@ -336,7 +336,11 @@ void main() {
           await Future<void>.delayed(
             delaysBeforeNextAttempt[cell.networkSyncAttemptsCount],
           );
-          await syncStorage.syncEntriesWithNetwork();
+          try {
+            await syncStorage.syncEntriesWithNetwork();
+          } on Exception {
+            // ignore
+          }
         }
 
         /// after max attempts cell should be removed from the storage
@@ -534,8 +538,14 @@ void main() {
         /// Reset callback
         reset(networkCallbacks);
 
-        /// Remove registered entries from syncStorage
-        await syncStorage.disposeAllEntries();
+        /// Dispose syncStorage
+        await syncStorage.dispose();
+
+        /// Recreate syncStorage
+        syncStorage = SyncStorage(
+          networkAvailabilityService: networkAvailabilityService,
+          children: [],
+        );
 
         /// Recreate entry
         entry = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
