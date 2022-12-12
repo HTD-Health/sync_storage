@@ -73,7 +73,7 @@ class InMemoryStorage<T> extends Storage<T> {
   Future<void> initialize() async {}
 
   @override
-  Future<List<StorageCell<T>>> readAll() {
+  Future<List<StorageCell<T>>> readAll() async {
     return Future.value(_elements.values.toList());
   }
 

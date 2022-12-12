@@ -190,10 +190,11 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   @Deprecated('In favor of syncWithNetwork')
   Future<void> requestNetworkSync() async {
-    /// ? We do not want to throw an exception outside the sync storage
-    void ignoreError(dynamic _) {}
-
-    await syncWithNetwork().catchError(ignoreError);
+    try {
+      await syncWithNetwork();
+    } on Exception {
+      // ? We do not want to throw an exception outside the sync storage
+    }
   }
 
   @override
@@ -459,7 +460,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     await storage.delete(cell);
   }
 
-  /// Utility functions
+  /// --- Utility functions ---
 
   /// Clears storage data.
   /// This will not cause refetch.
@@ -491,6 +492,15 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   }
 
   Future<void> addCell(StorageCell<T> cell) async {
+    final cellFromStorage = await storage.read(cell.id);
+
+    if (cellFromStorage != null) {
+      throw StateError(
+        'Cannot add cell. Cell with '
+        'id=${cell.id} is already in the storage.',
+      );
+    }
+
     await storage.write(cell);
 
     if (cell.needsNetworkSync || cell.isDelayed) {
@@ -520,41 +530,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     await requestNetworkSync();
     return cells;
-  }
-
-  /// Puts cell to the storage.
-  ///
-  /// Unlike the [updateCell] method. This method will not trigger
-  /// a network sync. Also, provided cell will be marked as synced.
-  ///
-  /// Calling putCell with a storage cell that is already queued for sync
-  /// will throw the StateError.
-  @experimental
-  Future<void> putCell(
-    StorageCell<T> cell,
-  ) async {
-    ArgumentError.checkNotNull(cell, 'cell');
-
-    final currentCell = await storage.read(cell.id);
-    if (currentCell == null) {
-      throw ArgumentError.value(
-        cell,
-        'cell',
-        'Cannot put cell with id="${cell.id.hexString}. '
-            'Cell with provided id does not exist.',
-      );
-    }
-
-    final cellIndex =
-        _cellsToSync.indexWhere((cellToSync) => cellToSync.id == cell.id);
-    final isCellAlreadyInCellsToSync = cellIndex >= 0;
-
-    if (isCellAlreadyInCellsToSync) {
-      throw StateError('Provided StorageCell is already queued for sync.');
-    }
-
-    cell.markSynced();
-    await storage.write(cell);
   }
 
   /// Update element in storage and network.
@@ -626,7 +601,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   /// this method will throw a [StateError] when there are
   /// unsynchronized elements.
   Future<List<StorageCell<T>>> setElements(
-    List<T> elements, {
+    Iterable<T> elements, {
     bool force = false,
   }) async {
     if (!force && needsNetworkSync) {
@@ -649,6 +624,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     _cellsToSync.clear();
 
+    await storage.clear();
     await storage.writeAll(cells);
 
     return cells.toList();

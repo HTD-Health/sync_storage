@@ -199,4 +199,7 @@ class StorageCell<T> {
       oldElement: oldElement,
     );
   }
+
+  @override
+  String toString() => 'StorageCell(${id})';
 }

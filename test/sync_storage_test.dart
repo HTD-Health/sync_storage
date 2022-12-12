@@ -365,27 +365,29 @@ void main() {
     group('Move cells between entries', () {
       final networkAvailabilityService =
           MockedNetworkAvailabilityService(initialIsConnected: false);
-      final syncStorage = SyncStorage(
-        networkAvailabilityService: networkAvailabilityService,
-        children: [],
-      );
+      late SyncStorage syncStorage;
       late StorageEntry<TestElement, InMemoryStorage<TestElement>> entry1;
       late StorageEntry<TestElement, InMemoryStorage<TestElement>> entry2;
-      InMemoryStorage<TestElement>? storage1;
-      InMemoryStorage<TestElement>? storage2;
+      late InMemoryStorage<TestElement> storage1;
+      late InMemoryStorage<TestElement> storage2;
 
-      setUpAll(() async {
+      setUp(() async {
+        syncStorage = SyncStorage(
+          networkAvailabilityService: networkAvailabilityService,
+          children: [],
+        );
+
         storage1 = InMemoryStorage<TestElement>('box1');
         storage2 = InMemoryStorage<TestElement>('box2');
 
         entry1 = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'box1',
-          storage: storage1!,
+          storage: storage1,
           callbacks: networkCallbacks,
         );
         entry2 = StorageEntry<TestElement, InMemoryStorage<TestElement>>(
           name: 'box2',
-          storage: storage2!,
+          storage: storage2,
           callbacks: networkCallbacks,
         );
 
@@ -393,13 +395,13 @@ void main() {
           ..addChild(entry1)
           ..addChild(entry2);
         await syncStorage.initialize();
+        await networkAvailabilityService.goOnline();
+        await syncStorage.syncEntriesWithNetwork();
       });
 
       test('Successfully moves cells between entries', () async {
-        await networkAvailabilityService.goOnline();
-
-        List<StorageCell<TestElement>> cells1 = await storage1!.readAll();
-        List<StorageCell<TestElement>> cells2 = await storage2!.readAll();
+        List<StorageCell<TestElement>> cells1 = await storage1.readAll();
+        List<StorageCell<TestElement>> cells2 = await storage2.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -410,8 +412,8 @@ void main() {
         final cell = await entry1.createElement(newElement);
         verify(networkCallbacks.onCreate(newElement)).called(1);
 
-        cells1 = await storage1!.readAll();
-        cells2 = await storage2!.readAll();
+        cells1 = await storage1.readAll();
+        cells2 = await storage2.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -420,8 +422,8 @@ void main() {
 
         await entry1.removeCell(cell);
 
-        cells1 = await storage1!.readAll();
-        cells2 = await storage2!.readAll();
+        cells1 = await storage1.readAll();
+        cells2 = await storage2.readAll();
 
         expect(cell.element, equals(newElement));
         expect(entry1.needsElementsSync, isFalse);
@@ -431,8 +433,8 @@ void main() {
 
         await entry2.addCell(cell);
 
-        cells1 = await storage1!.readAll();
-        cells2 = await storage2!.readAll();
+        cells1 = await storage1.readAll();
+        cells2 = await storage2.readAll();
 
         expect(entry1.needsElementsSync, isFalse);
         expect(entry2.needsElementsSync, isFalse);
@@ -442,7 +444,35 @@ void main() {
         verifyNever(networkCallbacks.onDelete(newElement)).called(0);
         verifyNever(networkCallbacks.onCreate(newElement)).called(0);
       });
+
+      test('Cannot add cell to the same entry multiple times', () async {
+        List<StorageCell<TestElement>> cells1 = await storage1.readAll();
+
+        expect(entry1.needsElementsSync, isFalse);
+        expect(cells1, isEmpty);
+
+        const newElement = TestElement(10);
+        final cell = await entry1.createElement(newElement);
+        verify(networkCallbacks.onCreate(newElement)).called(1);
+
+        cells1 = await storage1.readAll();
+
+        expect(entry1.needsElementsSync, isFalse);
+        expect(cells1, hasLength(1));
+        StateError? err;
+        try {
+          await entry1.addCell(cell);
+        // ignore: avoid_catching_errors
+        } on StateError catch (e) {
+          err = e;
+        }
+        expect(err, isA<StateError>());
+
+        cells1 = await storage1.readAll();
+        expect(cells1, hasLength(1));
+      });
     });
+
     group('onFetch callback works correctly', () {
       const elementsToFetch = [TestElement(0), TestElement(1)];
       const storageName = 'onFetch_test_box';
