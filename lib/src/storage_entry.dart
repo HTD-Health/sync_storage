@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/src/sync_storage.dart';
@@ -7,6 +8,7 @@ import 'package:sync_storage/sync_storage.dart';
 
 import 'core/core.dart';
 import 'helpers/sync_indicator.dart';
+import 'utils/parallel.dart';
 
 part 'storage_cell.dart';
 
@@ -428,14 +430,14 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       'Synchronize ${cellsReadyToSync.length} items '
       'using a batch size of ${batchSize}....',
     );
-    bool hasError = false;
+
+    SyncException? syncException;
     while (needsElementsSync && _context!.root.networkAvailable) {
       try {
-        // TODO: Do not wait for all 5 requests to end
-        await Future.wait<void>(cellsReadyToSync.take(batchSize).map(syncCell));
-        // ignore: avoid_catches_without_on_clauses
-      } catch (err) {
-        hasError = true;
+        // Perform multiple cell sync simultaneously.
+        await parallel(syncCell, cellsReadyToSync, maxConcurrentActions: 5);
+      } on ParallelException catch (e) {
+        syncException = SyncException(e.errors);
         // ignore the error
       }
     }
@@ -446,7 +448,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       lastSync: DateTime.now(),
     ));
 
-    if (hasError) throw const SyncException([]);
+    if (syncException != null) throw syncException;
   }
 
   void _removeCellFromCellsToSync(StorageCell<T> cell) {
