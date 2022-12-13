@@ -44,21 +44,18 @@ class SyncProgress {
   int get syncedElements =>
       _progresses.values.fold(0, (p, e) => p + e.syncedElementsCount);
 
-  int get initialElementsToSyncCount =>
+  int get _initialElementsToSyncCount =>
       _progresses.values.fold(0, (p, e) => p + e.initialElementsToSyncCount);
-  int get fetchedEntriesCount =>
+  int get _fetchedEntriesCount =>
       _progresses.values.fold(0, (p, e) => e.fetchCompleted ? p + 1 : p);
-  int get initialFetchRequiredCount =>
+  int get _initialFetchRequiredCount =>
       _progresses.values.fold(0, (p, e) => e.initialFetchRequired ? p + 1 : p);
 
-  double get progress {
-    return (syncedElements + fetchedEntriesCount) /
-        (initialElementsToSyncCount + initialFetchRequiredCount);
-  }
-
-  double get progressStep {
-    return 1 / (initialElementsToSyncCount + initialFetchRequiredCount);
-  }
+  int get overalSyncActionCount =>
+      _initialElementsToSyncCount + _initialFetchRequiredCount;
+  int get performedSyncActions => syncedElements + _fetchedEntriesCount;
+  double get progress => performedSyncActions / overalSyncActionCount;
+  double get progressStep => 1 / overalSyncActionCount;
 }
 
 class ProgressController implements ValueNotifier<SyncProgress> {
