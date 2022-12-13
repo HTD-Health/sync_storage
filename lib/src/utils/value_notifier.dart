@@ -22,7 +22,7 @@ class ValueNotifier<T> {
   T _value;
   T get value => _value;
 
-  final _streamController = StreamController<T>();
+  final _streamController = StreamController<T>.broadcast();
 
   ValueNotifier(this._value) {
     addListener(_streamController.add);
