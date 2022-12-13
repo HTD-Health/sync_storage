@@ -40,6 +40,21 @@ class SyncProgress {
   SyncProgress copyAndSet(Entry entry, EntrySyncProgress progress) {
     return SyncProgress(Map.of(_progresses)..[entry] = progress);
   }
+
+  int get syncedElements =>
+      _progresses.values.fold(0, (p, e) => p + e.syncedElementsCount);
+
+  int get initialElementsToSyncCount =>
+      _progresses.values.fold(0, (p, e) => p + e.initialElementsToSyncCount);
+  int get fetchedEntriesCount =>
+      _progresses.values.fold(0, (p, e) => e.fetchCompleted ? p + 1 : p);
+  int get initialFetchRequiredCount =>
+      _progresses.values.fold(0, (p, e) => e.initialFetchRequired ? p + 1 : p);
+
+  double get progress {
+    return (syncedElements + fetchedEntriesCount) /
+        (initialElementsToSyncCount + initialFetchRequiredCount);
+  }
 }
 
 class ProgressController implements ValueNotifier<SyncProgress> {
