@@ -60,10 +60,10 @@ class ProgressController implements ValueNotifier<SyncProgress> {
       _notifierController.notifier.removeListener(callback);
 
   @override
-  Stream<SyncProgress> toStream() => _notifierController.notifier.toStream();
+  Stream<SyncProgress> get stream => _notifierController.notifier.stream;
 
   @override
-  void clear() => _notifierController.notifier.clear();
+  void dispose() => _notifierController.notifier.dispose();
 
   void register(Entry entry, EntrySyncProgress progress) {
     _notifierController.value = value.copyAndSet(entry, progress);

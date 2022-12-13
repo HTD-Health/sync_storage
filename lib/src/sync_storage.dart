@@ -5,8 +5,6 @@ import 'package:rxdart/subjects.dart';
 import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/sync_storage.dart';
 
-import 'core/core.dart';
-
 enum SyncStorageStatus {
   idle,
   syncing,
@@ -228,8 +226,9 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
     await disposeAllEntries();
 
-    _networkNotifier.clear();
     _networkAvailabilitySubscription.cancel();
+    _networkNotifier.dispose();
+    _progress.dispose();
     _logger.dispose();
     _statusController.close();
   }

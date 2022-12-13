@@ -1,3 +1,5 @@
+import 'dart:async';
+
 typedef ValueChanged<T> = void Function(T value);
 
 class ValueController<T> {
@@ -11,8 +13,8 @@ class ValueController<T> {
 
   ValueController(T initialValue) : notifier = ValueNotifier<T>(initialValue);
 
-  void clear() {
-    notifier.clear();
+  void dispose() {
+    notifier.dispose();
   }
 }
 
@@ -20,7 +22,11 @@ class ValueNotifier<T> {
   T _value;
   T get value => _value;
 
-  ValueNotifier(this._value);
+  final _streamController = StreamController<T>();
+
+  ValueNotifier(this._value) {
+    addListener(_streamController.add);
+  }
 
   final List<ValueChanged<T>> _listeners = [];
 
@@ -38,11 +44,10 @@ class ValueNotifier<T> {
     }
   }
 
-  Stream<T> toStream() {
-    throw UnimplementedError();
-  }
+  Stream<T> get stream => _streamController.stream;
 
-  void clear() {
+  void dispose() {
     _listeners.clear();
+    _streamController.close();
   }
 }
