@@ -165,9 +165,10 @@ class SyncStorage extends SyncNode implements SyncRoot {
     _networkSyncTask = Completer<void>();
     try {
       traverse().forEach((e) {
+        final fetchRequired = e.canFetch;
         final progress = EntrySyncProgress(
-          initialFetchRequired: e.canFetch,
-          fetchCompleted: !e.canFetch,
+          initialFetchRequired: fetchRequired,
+          fetchCompleted: !fetchRequired,
           initialElementsToSyncCount: e.elementsToSyncCount,
           syncedElementsCount: 0,
         );

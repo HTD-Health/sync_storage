@@ -55,6 +55,10 @@ class SyncProgress {
     return (syncedElements + fetchedEntriesCount) /
         (initialElementsToSyncCount + initialFetchRequiredCount);
   }
+
+  double get progressStep {
+    return 1 / (initialElementsToSyncCount + initialFetchRequiredCount);
+  }
 }
 
 class ProgressController implements ValueNotifier<SyncProgress> {
