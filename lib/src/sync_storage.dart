@@ -167,7 +167,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
       traverse().forEach((e) {
         final progress = EntrySyncProgress(
           initialFetchRequired: e.canFetch,
-          fetchCompleted: e.canFetch,
+          fetchCompleted: !e.canFetch,
           initialElementsToSyncCount: e.elementsToSyncCount,
           syncedElementsCount: 0,
         );
