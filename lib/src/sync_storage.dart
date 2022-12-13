@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:scoped_logger/scoped_logger.dart';
-import 'package:sync_storage/src/core/progress.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 import 'core/core.dart';
