@@ -55,7 +55,11 @@ abstract class Entry<T, S extends Storage<T>> extends SyncNode {
 
   Future<StorageCell<T>> createElement(T element);
 
+  /// Clears entry, fetch will not be set as required
   Future<void> clear();
+
+  /// Clears data and marks entry as fetch needed
+  Future<void> reset();
 
   /// Remove all data and fetch new
   Future<void> refetch();

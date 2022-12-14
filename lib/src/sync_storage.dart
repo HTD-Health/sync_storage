@@ -237,6 +237,9 @@ class SyncStorage extends SyncNode {
   /// Disposes all entries and sets [SyncStorage] to
   /// [SyncStorageStatus.idle] state.
   Future<void> reset() async {
+    await Future.wait(traverse().map(
+      (entry) => entry.reset(),
+    ));
     await _disposeAllEntries();
     _statusController.value = SyncStorageStatus.idle;
   }
