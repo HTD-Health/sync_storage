@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:rxdart/subjects.dart';
-import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/sync_storage.dart';
 
 import 'services/network_availability_service.dart';
@@ -65,8 +64,6 @@ class SyncStorage extends SyncNode {
 
   final ScopedLogger _logger;
 
-  Stream<Log> get logs => _logger.logs;
-
   final _statusController =
       BehaviorSubject<SyncStorageStatus>.seeded(SyncStorageStatus.idle);
   Stream<SyncStorageStatus> get statuses => _statusController.stream;
@@ -101,8 +98,14 @@ class SyncStorage extends SyncNode {
   SyncStorage({
     required NetworkAvailabilityService networkAvailabilityService,
     List<Entry>? children,
+    List<LogsHandler>? logsHandlers,
     bool debug = false,
-  })  : _logger = ScopedLogger(printer: debug ? PlainTextPrinter() : null),
+  })  : _logger = ScopedLogger.fromScope(
+            scope: LoggerScope(context: ['SyncStorage']),
+            handlers: [
+              if (debug) PlainTextPrinter(),
+              if (logsHandlers != null) ...logsHandlers,
+            ]),
         _networkAvailabilityService = networkAvailabilityService,
         super(children: children ?? []);
 
@@ -250,7 +253,6 @@ class SyncStorage extends SyncNode {
     await _disposeAllEntries();
     _networkAvailabilitySubscription?.cancel();
     _progress.dispose();
-    _logger.dispose();
     _statusController.close();
   }
 }

@@ -11,7 +11,7 @@ environment:
   sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
-  scoped_logger: 0.0.1+dev.1
+  scoped_logger: ^0.1.0
   rxdart: ^0.27.3
   objectid: ^2.0.0
   meta: ^1.8.0

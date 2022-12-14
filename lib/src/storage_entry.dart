@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
-import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
 
