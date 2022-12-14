@@ -30,4 +30,5 @@ export 'src/utils/utils.dart'
         ParallelException,
         ListenableValueController,
         ListenableValue,
-        parallel;
+        parallel,
+        AsyncAction;
