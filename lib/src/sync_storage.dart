@@ -179,7 +179,7 @@ class SyncStorage extends SyncNode {
 
     /// If already syncing return current sync task future if available.
     if (isSyncing) return _networkSyncTask?.future;
-    _statusController.sink.add(SyncStorageStatus.syncing);
+    _statusController.value = SyncStorageStatus.syncing;
 
     _networkSyncTask = Completer<void>();
     try {
@@ -198,7 +198,7 @@ class SyncStorage extends SyncNode {
     } finally {
       // _progress.end();
       _networkSyncTask!.complete();
-      _statusController.sink.add(SyncStorageStatus.idle);
+      _statusController.value = SyncStorageStatus.idle;
       _progress.end();
     }
   }
@@ -227,10 +227,18 @@ class SyncStorage extends SyncNode {
     }
   }
 
+  /// Clears all entries belonging to this [SyncStorage] instance.
   Future<void> clear() async {
     await Future.wait(traverse().map(
       (entry) => entry.clear(),
     ));
+  }
+
+  /// Disposes all entries and sets [SyncStorage] to
+  /// [SyncStorageStatus.idle] state.
+  Future<void> reset() async {
+    await _disposeAllEntries();
+    _statusController.value = SyncStorageStatus.idle;
   }
 
   /// Dispose all entries and remove them from the tree
@@ -248,7 +256,7 @@ class SyncStorage extends SyncNode {
     if (isDisposed) {
       throw StateError('Sync storage was already disposed');
     }
-    _statusController.sink.add(SyncStorageStatus.disposed);
+    _statusController.value = SyncStorageStatus.disposed;
 
     await _disposeAllEntries();
     _networkAvailabilitySubscription?.cancel();
