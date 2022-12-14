@@ -222,12 +222,12 @@ void main() {
 
     group('Offline support', () {
       test('successfully changes network state', () async {
-        expect(syncStorage.networkNotifier.value, isTrue);
+        expect(syncStorage.network.isConnected, isTrue);
         await networkAvailabilityService.goOffline();
 
         /// wait for network changes to take effect
         await Future<void>.delayed(const Duration(milliseconds: 10));
-        expect(syncStorage.networkNotifier.value, isFalse);
+        expect(syncStorage.network.isConnected, isFalse);
       });
 
       test('Make only "create" call when not synced cell was updated',
@@ -462,7 +462,7 @@ void main() {
         StateError? err;
         try {
           await entry1.addCell(cell);
-        // ignore: avoid_catching_errors
+          // ignore: avoid_catching_errors
         } on StateError catch (e) {
           err = e;
         }

@@ -58,28 +58,28 @@ class SyncProgress {
   double get progressStep => 1 / overalSyncActionCount;
 }
 
-class ProgressController implements ValueNotifier<SyncProgress> {
-  final ValueController<SyncProgress> _notifierController;
+class ProgressController implements ListenableValue<SyncProgress> {
+  final ListenableValueController<SyncProgress> _notifierController;
 
   ProgressController(SyncProgress progress)
-      : _notifierController = ValueController<SyncProgress>(progress);
+      : _notifierController = ListenableValueController<SyncProgress>(progress);
 
   @override
   SyncProgress get value => _notifierController.value;
 
   @override
   void addListener(ValueChanged<SyncProgress> callback) =>
-      _notifierController.notifier.addListener(callback);
+      _notifierController.listenable.addListener(callback);
 
   @override
   void removeListener(ValueChanged<SyncProgress> callback) =>
-      _notifierController.notifier.removeListener(callback);
+      _notifierController.listenable.removeListener(callback);
 
   @override
-  Stream<SyncProgress> get stream => _notifierController.notifier.stream;
+  Stream<SyncProgress> get stream => _notifierController.listenable.stream;
 
   @override
-  void dispose() => _notifierController.notifier.dispose();
+  void dispose() => _notifierController.listenable.dispose();
 
   void register(Entry entry, EntrySyncProgress progress) {
     _notifierController.value = value.copyAndSet(entry, progress);

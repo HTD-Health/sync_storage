@@ -166,9 +166,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     await forEachChildrenLayered(
       (_, child) => child.initialize(SyncContext(
         logger: _logger.beginScope('Entry(${child.name})'),
-        root: context.root,
         progress: context.progress,
-        networkNotifier: context.networkNotifier,
+        network: context.network,
       )),
       singleLayer: true,
     );
@@ -200,10 +199,17 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   @override
   Future<void> syncWithNetwork() async {
-    if (isSyncing) return _networkSyncTask!.future;
-    if (!_context!.isNetworkAvailable) {
-      // No network, sync cannot be performed
-      return;
+    if (isSyncing) {
+      _logger.i(
+        'Network synchronization already underway. '
+        'Awaiting that task...',
+      );
+      return _networkSyncTask!.future;
+    }
+    if (!_context!.network.isConnected) {
+      final error = ConnectionInterrupted();
+      _logger.w('No network. Cannot sync.', error, StackTrace.current);
+      throw error;
     }
 
     _networkSyncTask = Completer<void>();
@@ -310,7 +316,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     final logger = _logger.beginScope('Cell(${cell.id})');
 
     /// end task when network is not available
-    if (!_context!.isNetworkAvailable) {
+    if (!_context!.network.isConnected) {
       _logger.w('Cannot sync cell, no network. Skipping...');
       return;
     }
@@ -434,7 +440,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     );
 
     SyncException? syncException;
-    while (needsElementsSync && _context!.isNetworkAvailable) {
+    while (needsElementsSync && _context!.network.isConnected) {
       try {
         // Perform multiple cell sync simultaneously.
         await parallel(syncCell, cellsReadyToSync, maxConcurrentActions: 5);
@@ -471,9 +477,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   /// To refetch all data use [refetch] method.
   @override
   Future<void> clear() async {
-    _logger.i(
-      'Clearing entry with name=\"$name\"...',
-    );
+    _logger.i('Clearing entry...');
 
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
@@ -482,9 +486,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     _cellsToSync.clear();
     await storage.clear();
 
-    _logger.i(
-      'Entry with name=\"$name\" cleared.',
-    );
+    _logger.i('Entry cleared.');
   }
 
   @override
@@ -518,9 +520,14 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   @override
   Future<StorageCell<T>> createElement(T element) async {
     final cell = StorageCell<T>(element: element);
+    final logger = _logger.beginScope('Cell(${cell.id})');
+    logger.t('Creating new element...');
     _cellsToSync.add(cell);
     await storage.write(cell);
+    logger.t('Cell stored in storage.');
+    logger.t('Requesting network sync...');
     await requestNetworkSync();
+    logger.t('Network sync request done.');
     return cell;
   }
 

@@ -25,4 +25,4 @@ export 'src/storage_entry.dart'
         SyncAction;
 export 'src/sync_storage.dart' show SyncStorage, SyncStorageStatus;
 export 'src/utils/utils.dart'
-    show ParallelException, ValueController, ValueNotifier, parallel;
+    show ParallelException, ListenableValueController, ListenableValue, parallel;

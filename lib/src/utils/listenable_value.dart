@@ -2,29 +2,41 @@ import 'dart:async';
 
 typedef ValueChanged<T> = void Function(T value);
 
-class ValueController<T> {
-  final ValueNotifier<T> notifier;
+/// Manages the [ListenableValue].
+class ListenableValueController<T> {
+  final ListenableValue<T> listenable;
 
-  T get value => notifier.value;
+  T get value => listenable.value;
   void set value(T value) {
-    notifier._value = value;
-    notifier._notify();
+    listenable._setValue(value);
   }
 
-  ValueController(T initialValue) : notifier = ValueNotifier<T>(initialValue);
+  ListenableValueController(T initialValue)
+      : listenable = ListenableValue<T>._(initialValue);
 
   void dispose() {
-    notifier.dispose();
+    listenable.dispose();
   }
 }
 
-class ValueNotifier<T> {
+/// Unlike streams, [ListenableValue] provides values synchronously.
+/// However, it also exposes a [stream] that can be
+/// helpful in certain scenarious.
+class ListenableValue<T> {
   T _value;
   T get value => _value;
 
+  void _setValue(T newValue) {
+    final bool hasValueChanged = newValue != value;
+    if (hasValueChanged) {
+      _value = newValue;
+      _notify();
+    }
+  }
+
   final _streamController = StreamController<T>.broadcast();
 
-  ValueNotifier(this._value) {
+  ListenableValue._(this._value) {
     addListener(_streamController.add);
   }
 

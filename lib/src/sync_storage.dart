@@ -1,56 +1,67 @@
 import 'dart:async';
 
-import 'package:meta/meta.dart';
 import 'package:rxdart/subjects.dart';
 import 'package:scoped_logger/scoped_logger.dart';
 import 'package:sync_storage/sync_storage.dart';
 
+import 'services/network_availability_service.dart';
+
 enum SyncStorageStatus {
+  /// Sync storage was created and not initialized.
+  ///
+  /// New entries can be added and removed as the dependency tree is not locked.
   idle,
+
+  /// SyncStorage is initializing itself and its' entries.
+  ///
+  /// During this process, the dependency tree is locked, therefore,
+  /// it is not possible to remove or add new entries.
+  ///
+  /// If the [SyncStorage.initialize] method throws an exception,
+  /// the dependency tree is unlocked and the status is set to [idle].
+  initializing,
+
+  /// SyncStorage has been successfully initialized and is fully operational.
+  initialized,
+
+  /// The sync is in progress.
   syncing,
+
+  /// SyncStorage has been disposed and can no longer be used.
   disposed,
 }
 
-@experimental
-abstract class SyncRoot {
-  ValueNotifier<bool> get networkNotifier;
-}
-
+/// Basic data passed during ASyncStorage initialization from the root
+/// ([SyncStorage]) down the tree to all entries.
 class SyncContext {
-  @experimental
-  final SyncRoot root;
-  final ValueNotifier<bool> networkNotifier;
-  bool get isNetworkAvailable => networkNotifier.value;
-
+  final NetworkConnectionStatus network;
   final ProgressController progress;
-
   final ScopedLogger logger;
 
   SyncContext({
     required this.logger,
     required this.progress,
-    required this.root,
-    required this.networkNotifier,
+    required this.network,
   });
 }
 
-class SyncStorage extends SyncNode implements SyncRoot {
-  bool get disposed => status == SyncStorageStatus.disposed;
+class SyncStorage extends SyncNode {
+  bool get isInitialized =>
+      status != SyncStorageStatus.idle && status != SyncStorageStatus.disposed;
+  bool get isDisposed => status == SyncStorageStatus.disposed;
 
   /// Returns last sync date
-  DateTime? get lastSync => traverse().reduce((value, element) {
-        if (element.lastSync == null) {
-          return value;
-        } else if (value.lastSync == null) {
-          return element;
+  DateTime? get lastSync => traverse().fold(null, (lastSync, element) {
+        if (lastSync == null) {
+          return element.lastSync;
+        } else if (element.lastSync == null) {
+          return lastSync;
+        } else if (element.lastSync!.isAfter(lastSync)) {
+          return element.lastSync;
         } else {
-          if (element.lastSync!.isAfter(value.lastSync!)) {
-            return element;
-          } else {
-            return value;
-          }
+          return lastSync;
         }
-      }).lastSync;
+      });
 
   final ScopedLogger _logger;
 
@@ -61,12 +72,9 @@ class SyncStorage extends SyncNode implements SyncRoot {
   Stream<SyncStorageStatus> get statuses => _statusController.stream;
   SyncStorageStatus get status => _statusController.value;
 
-  final NetworkAvailabilityService networkAvailabilityService;
-  late StreamSubscription<bool> _networkAvailabilitySubscription;
-
-  @override
-  ValueNotifier<bool> get networkNotifier => _networkNotifier.notifier;
-  final _networkNotifier = ValueController<bool>(false);
+  NetworkConnectionStatus get network => _networkAvailabilityService;
+  final NetworkAvailabilityService _networkAvailabilityService;
+  StreamSubscription<bool>? _networkAvailabilitySubscription;
 
   int get elementsToSyncCount =>
       traverse().fold<int>(0, (s, e) => s + e.elementsToSyncCount);
@@ -88,46 +96,54 @@ class SyncStorage extends SyncNode implements SyncRoot {
       .toList();
 
   final _progress = ProgressController(SyncProgress({}));
-  ValueNotifier<SyncProgress> get progress => _progress;
-
-  /// After calling this method is not possible to add more children.
-  Future<void> initialize() async {
-    _lockAllChildren();
-
-    await forEachChildrenLayered(
-      (parent, child) => child.initialize(SyncContext(
-        root: this,
-        progress: _progress,
-        logger: _logger.beginScope('Entry(${child.name})'),
-        networkNotifier: networkNotifier,
-      )),
-
-      /// Childen are responsible for its' children initialization
-      /// as the context can be scoped in the future
-      singleLayer: true,
-    );
-  }
+  ListenableValue<SyncProgress> get progress => _progress;
 
   SyncStorage({
-    required this.networkAvailabilityService,
+    required NetworkAvailabilityService networkAvailabilityService,
     List<Entry>? children,
     bool debug = false,
   })  : _logger = ScopedLogger(printer: debug ? PlainTextPrinter() : null),
-        super(children: children ?? []) {
-    _networkNotifier.value = networkAvailabilityService.isConnected;
-    _networkAvailabilitySubscription = networkAvailabilityService
-        .onConnectivityChanged
-        .listen(_onNetworkChange);
+        _networkAvailabilityService = networkAvailabilityService,
+        super(children: children ?? []);
+
+  /// After calling this method is not possible to add more children.
+  Future<void> initialize() async {
+    if (status != SyncStorageStatus.idle) {
+      throw StateError(
+        'Cannot initialize. '
+        'The SyncStorage object was already initialized.',
+      );
+    }
+    _lockAllChildren();
+
+    try {
+      _statusController.add(SyncStorageStatus.initializing);
+      await forEachChildrenLayered(
+        (parent, child) => child.initialize(SyncContext(
+          progress: _progress,
+          logger: _logger.beginScope('Entry(${child.name})'),
+          network: _networkAvailabilityService,
+        )),
+
+        /// Childen are responsible for its' children initialization
+        /// as the context can be scoped in the future
+        singleLayer: true,
+      );
+      _networkAvailabilitySubscription = _networkAvailabilityService
+          .onConnectivityChanged
+          .listen(_onNetworkChange);
+      _statusController.add(SyncStorageStatus.initialized);
+    } on Exception {
+      _unlockAllChildren();
+      _statusController.add(SyncStorageStatus.idle);
+    }
   }
 
   void _onNetworkChange(bool networkAvailable) {
-    if (networkAvailable != networkNotifier.value) {
-      _networkNotifier.value = networkAvailable;
-      if (networkAvailable) {
-        _logger.i('Network connection is now available');
+    if (networkAvailable) {
+      _logger.i('Network connection is now available.');
 
-        syncEntriesWithNetwork().ignore();
-      }
+      syncEntriesWithNetwork().ignore();
     }
   }
 
@@ -150,7 +166,7 @@ class SyncStorage extends SyncNode implements SyncRoot {
 
     /// If there is no network connection, do not perform
     /// the network synchronization steps
-    if (!_networkNotifier.value) {
+    if (!_networkAvailabilityService.isConnected) {
       _logger.w(
         'Network connection is currently not available. '
         'Waiting for connection...',
@@ -208,11 +224,17 @@ class SyncStorage extends SyncNode implements SyncRoot {
     }
   }
 
-  @protected
-  Future<void> disposeAllEntries() async {
-    for (final entry in traverse()) {
-      await entry.dispose();
-    }
+  Future<void> clear() async {
+    await Future.wait(traverse().map(
+      (entry) => entry.clear(),
+    ));
+  }
+
+  /// Dispose all entries and remove them from the tree
+  Future<void> _disposeAllEntries() async {
+    await Future.wait(traverse().map(
+      (entry) => entry.dispose(),
+    ));
 
     // Unlock all children to allow their removal
     _unlockAllChildren();
@@ -220,15 +242,13 @@ class SyncStorage extends SyncNode implements SyncRoot {
   }
 
   Future<void> dispose() async {
-    if (disposed) {
+    if (isDisposed) {
       throw StateError('Sync storage was already disposed');
     }
     _statusController.sink.add(SyncStorageStatus.disposed);
 
-    await disposeAllEntries();
-
-    _networkAvailabilitySubscription.cancel();
-    _networkNotifier.dispose();
+    await _disposeAllEntries();
+    _networkAvailabilitySubscription?.cancel();
     _progress.dispose();
     _logger.dispose();
     _statusController.close();
