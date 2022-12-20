@@ -27,8 +27,10 @@ abstract class Storage<T> {
 
   /// Write all cells to the storage.
   ///
-  /// When [replace] is set to `true` the entry will be cleared before
-  /// inserting new [cells].
+  /// The entry must be cleared before inserting new [cells],
+  /// but it is not cleared via the [clear] method,
+  /// as this method allows the data to be merged with the current
+  /// data in the storage.
   Future<void> writeAll(List<StorageCell<T>> cells);
 
   /// Writes a single [cell] to the storage.

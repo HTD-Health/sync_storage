@@ -57,23 +57,29 @@ class InMemoryStorage<T> extends Storage<T> {
   );
 
   @override
-  Future<void> clear() async {
+  Future<void> clear() {
     _elements.clear();
+    return Future<void>.value();
   }
 
   @override
-  Future<void> delete(StorageCell<T> cell) async {
+  Future<void> delete(StorageCell<T> cell) {
     _elements.removeWhere((id, _) => id == cell.id);
+    return Future<void>.value();
   }
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() {
+    return Future<void>.value();
+  }
 
   @override
-  Future<void> initialize() async {}
+  Future<void> initialize() {
+    return Future<void>.value();
+  }
 
   @override
-  Future<List<StorageCell<T>>> readAll() async {
+  Future<List<StorageCell<T>>> readAll() {
     return Future.value(_elements.values.toList());
   }
 
@@ -91,7 +97,9 @@ class InMemoryStorage<T> extends Storage<T> {
 
   @override
   Future<void> writeAll(List<StorageCell<T>> cells) {
-    _elements.addEntries(cells.map((c) => MapEntry(c.id, c)));
+    _elements
+      ..clear()
+      ..addEntries(cells.map((c) => MapEntry(c.id, c)));
 
     return Future<void>.value();
   }

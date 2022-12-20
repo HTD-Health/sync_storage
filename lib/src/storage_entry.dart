@@ -240,12 +240,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
           /// new cells are fetched from the network.
           /// Current cells should be replaced with new one.
           _logger.i('Replacing the cells with the ${cells.length} fetched.');
-          await storage.clear();
-
-          /// It is possible that fetch does not return any elements
-          if (cells.isNotEmpty) {
-            await storage.writeAll(cells);
-          }
+          await storage.writeAll(cells);
         }
 
         _context!.progress.raportFetchDone(this);
@@ -293,6 +288,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     await requestNetworkSync();
   }
 
+  @override
   Future<void> reset() async {
     _logger.i(
       'Entry reset performed.',
