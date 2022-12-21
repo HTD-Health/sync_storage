@@ -200,8 +200,10 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     }
   }
 
+  /// The [maxConcurrentActions] (defaults to `5`) is the maximum requests
+  /// that will be called in parallel.
   @override
-  Future<void> syncWithNetwork() async {
+  Future<void> syncWithNetwork({int maxConcurrentActions = 5}) async {
     if (isSyncing) {
       _logger.i(
         'Network synchronization already underway. '
@@ -220,7 +222,9 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     try {
       if (needsElementsSync) {
         _logger.i('Syncing elements with network...');
-        await syncElementsWithNetwork();
+        await syncElementsWithNetwork(
+          maxConcurrentActions: maxConcurrentActions,
+        );
         _logger.i('Elements sync completed.');
       }
 
@@ -429,13 +433,15 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     }
   }
 
-  /// The [batchSize] (defaults to `5`) is the maximum requests
+  /// The [maxConcurrentActions] is the maximum requests
   /// that will be called in parallel.
   @protected
-  Future<void> syncElementsWithNetwork({int batchSize = 5}) async {
+  Future<void> syncElementsWithNetwork({
+    required int maxConcurrentActions,
+  }) async {
     _logger.i(
-      'Synchronize ${cellsReadyToSync.length} items '
-      'using a batch size of ${batchSize}....',
+      'Synchronizing ${cellsReadyToSync.length} elements '
+      'using up to ${maxConcurrentActions} concurrent actions...',
     );
 
     SyncException? syncException;
