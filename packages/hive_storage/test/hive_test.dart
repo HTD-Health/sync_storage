@@ -1,6 +1,7 @@
+import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_storage/hive_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
-import 'package:test/test.dart';
 
 import 'data.dart';
 
@@ -81,6 +82,35 @@ void main() {
         () async => controller.getStorage('newBox'),
         throwsA(isA<StateError>()),
       );
+    });
+
+    test('Serialization works correctly', () async {
+      final cell = StorageCell.synced(element: const TestElement(1));
+      const encoder =
+          StorageCellJsonEncoder(serializer: TestElementSerializer());
+      const decoder =
+          StorageCellJsonDecoder(serializer: TestElementSerializer());
+
+      final jsonEncodedCell = encoder.convert(cell);
+      final jsonDecodedCell = decoder.convert(jsonEncodedCell);
+
+      expect(jsonDecodedCell.id, equals(cell.id));
+      expect(jsonDecodedCell.createdAt, equals(cell.createdAt));
+      expect(jsonDecodedCell.updatedAt, equals(cell.updatedAt));
+      expect(jsonDecodedCell.lastSync, equals(cell.lastSync));
+      expect(jsonDecodedCell.syncDelayedTo, equals(cell.syncDelayedTo));
+      expect(jsonDecodedCell.deleted, equals(cell.deleted));
+      expect(jsonDecodedCell.element.value, equals(cell.element.value));
+      expect(jsonDecodedCell.oldElement, equals(cell.oldElement));
+      expect(jsonDecodedCell.isReadyForSync, equals(cell.isReadyForSync));
+      expect(jsonDecodedCell.isDelayed, equals(cell.isDelayed));
+      expect(jsonDecodedCell.maxSyncAttemptsReached,
+          equals(cell.maxSyncAttemptsReached));
+      expect(jsonDecodedCell.needsNetworkSync, equals(cell.needsNetworkSync));
+      expect(jsonDecodedCell.networkSyncAttemptsCount,
+          equals(cell.networkSyncAttemptsCount));
+      expect(jsonDecodedCell.wasSynced, equals(cell.wasSynced));
+      expect(jsonDecodedCell.actionNeeded, equals(cell.actionNeeded));
     });
   });
 }

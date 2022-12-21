@@ -9,7 +9,7 @@ abstract class Storage<T> {
 
   StorageConfig get config;
 
-  /// This method is called together with [SyncStorage] [initializeEntry]
+  /// This method is called together with [Entry.initialize]
   /// method.
   ///
   /// This is the best place to initialize memory, open files, etc.
@@ -17,33 +17,37 @@ abstract class Storage<T> {
   Future<void> initialize();
 
   /// Set current config.
+  ///
+  /// Entries uses [config] to store additonal inforations like
+  /// last fetch date or whether the fetch was requested.
   Future<void> writeConfig(StorageConfig config);
 
   /// Read all cells from the storage.
-  Future<List<StorageCell<T>>> readAllCells();
+  Future<List<StorageCell<T>>> readAll();
 
-  /// Write all cells from the storage.
-  Future<void> writeAllCells(List<StorageCell<T>> cells);
+  /// Write all cells to the storage.
+  ///
+  /// The entry must be cleared before inserting new [cells],
+  /// but it is not cleared via the [clear] method,
+  /// as this method allows the data to be merged with the current
+  /// data in the storage.
+  Future<void> writeAll(List<StorageCell<T>> cells);
 
-  Future<void> writeCell(StorageCell<T> cell);
+  /// Writes a single [cell] to the storage.
+  Future<void> write(StorageCell<T> cell);
 
-  Future<void> deleteCell(StorageCell<T> cell);
+  /// Removes a single [cell] from the storage.
+  Future<void> delete(StorageCell<T> cell);
 
-  Future<StorageCell<T>?> readCell(ObjectId id);
+  /// Reads a single cell by [id] from the storage.
+  Future<StorageCell<T>?> read(ObjectId id);
 
   /// Read all cells from the storage.
-  Future<List<StorageCell<T>>> readNotSyncedCells();
+  Future<List<StorageCell<T>>> readNotSynced();
 
   /// Clear all storage data
   Future<void> clear();
 
-  /// Delete storage.
-  ///
-  /// In opposite to [clear], this method will remove files/tables related
-  /// with current storage. After this action [create] should be called
-  /// before next use.
-  Future<void> delete();
-
-  /// Called together with [SyncStorage] [dispose] method.
+  /// Called together with the [Entry.dispose] method.
   Future<void> dispose();
 }

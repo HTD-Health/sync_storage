@@ -2,6 +2,7 @@ part of './storage_entry.dart';
 
 typedef DelayDurationGetter = Duration Function(int attempt);
 
+/// Synchronization action that is required for [StorageCell].
 enum SyncAction {
   create,
   update,
@@ -29,12 +30,14 @@ class StorageCell<T> {
   DateTime? _lastSync;
   bool _deleted;
   bool get deleted => _deleted;
-  T? _oldElement;
-  T? get oldElement => _oldElement;
 
   /// Current element stored in the cell.
   T get element => _element;
   T _element;
+
+  /// Previous element (eg. before update)
+  T? get oldElement => _oldElement;
+  T? _oldElement;
 
   /// The number of times that network synchronization was retried.
   int get networkSyncAttemptsCount => _networkSyncAttemptsCount;
@@ -44,15 +47,16 @@ class StorageCell<T> {
   ///
   /// Cell will be delayed or deleted if [maxSyncAttemptsReached] is
   /// already reached.
+  ///
+  /// Sync will be delayed by the provided [delay] value.
   Duration registerSyncAttempt({
-    required DelayDurationGetter getDelayBeforeNextAttempt,
+    required Duration delay,
   }) {
     if (isDelayed) {
       throw StateError('Cannot register sync attempt for delayed cell.');
     }
 
-    final attempt = _networkSyncAttemptsCount++;
-    final delay = getDelayBeforeNextAttempt(attempt);
+    _networkSyncAttemptsCount++;
 
     _syncDelayedTo = DateTime.now().add(delay);
 
@@ -140,18 +144,18 @@ class StorageCell<T> {
   bool get isReadyForSync => !isDelayed && needsNetworkSync;
 
   /// Marking this cell as ready for update.
-  void markAsUpdateNeeded() {
+  void markUpdateNeeded() {
     _updatedAt = DateTime.now();
   }
 
   /// Mark element as synced with network.
-  void markAsSynced() {
+  void markSynced() {
     _oldElement = null;
     _lastSync = DateTime.now();
     resetSyncAttemptsCount();
   }
 
-  void markAsDeleted() {
+  void markDeleted() {
     if (!_deleted) {
       _deleted = true;
       _updatedAt = DateTime.now();
@@ -181,6 +185,7 @@ class StorageCell<T> {
     }
   }
 
+  @deprecated
   StorageCell<T> copy() {
     return StorageCell<T>(
       id: id,
@@ -195,49 +200,6 @@ class StorageCell<T> {
     );
   }
 
-  String toJson(Serializer<T?> serializer) {
-    final jsonMap = <String, dynamic>{
-      'id': id.hexString,
-      'deleted': deleted,
-      'syncDelayedTo': _syncDelayedTo?.toIso8601String(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
-      'lastSync': lastSync?.toIso8601String(),
-      'networkSyncAttemptsCount': networkSyncAttemptsCount,
-      'element': element == null ? null : serializer.toJson(element),
-      if (oldElement != null) 'oldElement': serializer.toJson(oldElement),
-    };
-
-    return json.encode(jsonMap);
-  }
-
-  factory StorageCell.fromJson(String data, Serializer<T> serializer) {
-    final dynamic decodedJson = json.decode(data);
-
-    final dynamic id = decodedJson['id'];
-    final dynamic element = decodedJson['element'];
-    final dynamic oldElement = decodedJson['oldElement'];
-    final dynamic createdAt = decodedJson['createdAt'];
-    final dynamic updatedAt = decodedJson['updatedAt'];
-    final dynamic lastSync = decodedJson['lastSync'];
-    final dynamic syncDelayedTo = decodedJson['syncDelayedTo'];
-
-    return StorageCell(
-      id: id == null
-
-          /// If current cell does not contain id, generate a new one.
-          /// (silent data migration)
-          ? null
-          : ObjectId.fromHexString(id),
-      deleted: decodedJson['deleted'],
-      networkSyncAttemptsCount: decodedJson['networkSyncAttemptsCount'],
-      element: serializer.fromJson(element),
-      oldElement: oldElement == null ? null : serializer.fromJson(oldElement),
-      createdAt: createdAt == null ? null : DateTime.tryParse(createdAt),
-      updatedAt: updatedAt == null ? null : DateTime.tryParse(updatedAt),
-      lastSync: lastSync == null ? null : DateTime.tryParse(lastSync),
-      syncDelayedTo:
-          syncDelayedTo == null ? null : DateTime.tryParse(syncDelayedTo),
-    );
-  }
+  @override
+  String toString() => 'StorageCell(${id})';
 }

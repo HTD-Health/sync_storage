@@ -1,13 +1,15 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_storage/hive_storage.dart';
 import 'package:meta/meta.dart';
-
-import '../../sync_storage.dart';
+import 'package:sync_storage/sync_storage.dart' hide Serializer;
 
 class HiveStorageController<T> {
   @visibleForTesting
   late Box<String> box;
   final String boxName;
   final Serializer<T> serializer;
+  final StorageCellJsonEncoder<T> encoder;
+  final StorageCellJsonDecoder<T> decoder;
 
   bool _initialized = false;
   bool get initialized => _initialized;
@@ -28,7 +30,9 @@ class HiveStorageController<T> {
     _assertNotDisposed();
   }
 
-  HiveStorageController(this.boxName, this.serializer);
+  HiveStorageController(this.boxName, this.serializer)
+      : encoder = StorageCellJsonEncoder<T>(serializer: serializer),
+        decoder = StorageCellJsonDecoder<T>(serializer: serializer);
 
   Future<void> initialize() async {
     if (initialized) throw StateError('Controller is already initialized.');
@@ -119,8 +123,12 @@ class HiveStorage<T> extends Storage<T> {
 
   final String boxName;
   final Serializer<T> serializer;
+  final StorageCellJsonEncoder<T> encoder;
+  final StorageCellJsonDecoder<T> decoder;
 
-  HiveStorage(this.boxName, this.serializer);
+  HiveStorage(this.boxName, this.serializer)
+      : encoder = StorageCellJsonEncoder<T>(serializer: serializer),
+        decoder = StorageCellJsonDecoder<T>(serializer: serializer);
 
   @visibleForTesting
   late LazyBox<String?> box;
@@ -150,14 +158,12 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<List<StorageCell<T>>> readAllCells() async {
+  Future<List<StorageCell<T>>> readAll() async {
     final values = await Future.wait(box.keys
         .where((dynamic key) => key != _configKey)
         .map((dynamic key) => box.get(key)));
 
-    return values
-        .map((value) => StorageCell<T>.fromJson(value!, serializer))
-        .toList();
+    return values.map((value) => decoder.convert(value!)).toList();
   }
 
   Future<void> _loadConfig() async {
@@ -175,10 +181,8 @@ class HiveStorage<T> extends Storage<T> {
   }
 
   @override
-  Future<void> writeAllCells(Iterable<StorageCell<T>> cells) async {
-    await box.clear();
-
-    await Future.wait(cells.map(writeCell));
+  Future<void> writeAll(Iterable<StorageCell<T>> cells) async {
+    await Future.wait(cells.map(write));
 
     await writeConfig(config);
   }
@@ -194,33 +198,30 @@ class HiveStorage<T> extends Storage<T> {
     await _loadConfig();
   }
 
-  @override
-  Future<void> delete() async {
+  Future<void> deleteFromDisk() async {
     await box.deleteFromDisk();
   }
 
   @override
-  Future<void> deleteCell(StorageCell<T> cell) {
+  Future<void> delete(StorageCell<T> cell) {
     return box.delete(cell.id.hexString);
   }
 
   @override
-  Future<StorageCell<T>?> readCell(ObjectId id) async {
+  Future<StorageCell<T>?> read(ObjectId id) async {
     final jsonEncodedCell = await box.get(id.hexString);
 
-    return jsonEncodedCell == null
-        ? null
-        : StorageCell<T>.fromJson(jsonEncodedCell, serializer);
+    return jsonEncodedCell == null ? null : decoder.convert(jsonEncodedCell);
   }
 
   @override
-  Future<void> writeCell(StorageCell<T> cell) {
-    return box.put(cell.id.hexString, cell.toJson(serializer));
+  Future<void> write(StorageCell<T> cell) {
+    return box.put(cell.id.hexString, encoder.convert(cell));
   }
 
   @override
-  Future<List<StorageCell<T>>> readNotSyncedCells() async {
-    final cells = await readAllCells();
+  Future<List<StorageCell<T>>> readNotSynced() async {
+    final cells = await readAll();
     return cells.where((cell) => cell.needsNetworkSync).toList();
   }
 }

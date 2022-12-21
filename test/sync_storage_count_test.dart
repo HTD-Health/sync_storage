@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -28,26 +27,16 @@ class HasElementValue extends CustomMatcher {
 
 @GenerateMocks([StorageNetworkCallbacks])
 void main() {
-  final boxNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
+  final storageNames = [for (int i = 0; i < 5; i++) 'SYNC_TEST_$i'];
   late SyncStorage syncStorage;
-  final List<HiveStorageMock<TestElement>> storages = [];
-  final List<StorageEntry<TestElement, HiveStorageMock<TestElement>>> entries =
+  final List<InMemoryStorage<TestElement>> storages = [];
+  final List<StorageEntry<TestElement, InMemoryStorage<TestElement>>> entries =
       [];
   final networkAvailabilityService =
       MockedNetworkAvailabilityService(initialIsConnected: false);
   final networkCallbacks = MockStorageNetworkCallbacks<TestElement>();
 
-  /// remove box if already exists
-  setUpAll(() async {
-    Hive.init('./');
-  });
-
   tearDownAll(() async {
-    for (final name in boxNames) {
-      if (await Hive.boxExists(name)) {
-        await Hive.deleteBoxFromDisk(name);
-      }
-    }
     networkAvailabilityService.dispose();
   });
 
@@ -55,35 +44,30 @@ void main() {
     when(networkCallbacks.onFetch()).thenAnswer((_) async => []);
     when(networkCallbacks.onCreate(any)).thenAnswer((_) async => null);
 
-    for (final name in boxNames) {
-      if (await Hive.boxExists(name)) {
-        await Hive.deleteBoxFromDisk(name);
-      }
-    }
-
-    syncStorage = SyncStorage(
-      networkAvailabilityService: networkAvailabilityService,
-    );
-
     storages
       ..clear()
       ..addAll([
-        for (final name in boxNames)
-          HiveStorageMock(name, const TestElementSerializer()),
+        for (final name in storageNames) InMemoryStorage(name),
       ]);
 
     entries
       ..clear()
       ..addAll([
-        for (int i = 0; i < boxNames.length; i++)
-          await syncStorage
-              .registerEntry<TestElement, HiveStorageMock<TestElement>>(
-            name: boxNames[i],
+        for (int i = 0; i < storageNames.length; i++)
+          StorageEntry<TestElement, InMemoryStorage<TestElement>>(
+            name: storageNames[i],
             storage: storages[i],
-            networkCallbacks: networkCallbacks,
+            callbacks: networkCallbacks,
             getDelayBeforeNextAttempt: getDelayBeforeNextAttempt,
           )
       ]);
+
+    syncStorage = SyncStorage(
+      children: entries,
+      networkAvailabilityService: networkAvailabilityService,
+    );
+
+    await syncStorage.initialize();
 
     await networkAvailabilityService.goOffline();
   });
@@ -126,6 +110,7 @@ void main() {
 
     await entries.first.createElement(const TestElement(0));
     expect(syncStorage.lastSync, isA<DateTime>());
+
     expect(syncStorage.lastSync!.isAfter(lastSync), isTrue);
     expect(entries.last.lastSync!.isBefore(syncStorage.lastSync!), isTrue);
   });

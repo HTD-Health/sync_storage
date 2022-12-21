@@ -1,4 +1,5 @@
-import 'package:hive/hive.dart';
+import 'dart:async';
+
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:sync_storage/sync_storage.dart';
@@ -7,182 +8,178 @@ import 'package:test/test.dart';
 import 'data.dart';
 import 'sync_storage_levels_test.mocks.dart';
 
+Future<void> executeIgnoreError(Future<void> callback()) async {
+  try {
+    await callback();
+  } on Exception {
+    // ignore
+  }
+}
+
+StorageEntry createEntry({
+  required String name,
+  List<StorageEntry> dependants = const [],
+}) {
+  final storage = InMemoryStorage<TestElement>(name);
+  final callbacks = MockStorageNetworkCallbacks<TestElement>();
+  when(callbacks.onCreate(any))
+      .thenAnswer((realInvocation) => Future.value(null));
+  when(callbacks.onFetch()).thenAnswer((realInvocation) => Future.value([]));
+  return StorageEntry<TestElement, InMemoryStorage<TestElement>>(
+    children: dependants,
+    name: name,
+    getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
+    storage: storage,
+    callbacks: callbacks,
+  );
+}
+
 @GenerateMocks([StorageNetworkCallbacks])
 void main() {
-  group('Entries levels', () {
-    const List<int> levels = [4, 2, 1, 2, 0];
-    final entries =
-        <StorageEntry<TestElement, HiveStorageMock<TestElement>>?>[];
-
+  group('Entries levels -', () {
     final networkAvailabilityService =
         MockedNetworkAvailabilityService(initialIsConnected: false);
     late SyncStorage syncStorage;
 
-    StorageEntry<TestElement, HiveStorageMock<TestElement>>? getEntryWithLevel(
-            int level) =>
-        entries.firstWhere(
-          (element) => element!.level == level,
-          orElse: () => null,
-        );
-
-    setUpAll(() async {
-      entries.clear();
-      syncStorage = SyncStorage(
-        // debug: true,
-        networkAvailabilityService: networkAvailabilityService,
-      );
-
-      for (int i = 0; i < levels.length; i++) {
-        final level = levels[i];
-
-        final storage = HiveStorageMock<TestElement>(
-          'sync_storage_levels_box$i',
-          const TestElementSerializer(),
-        );
-        final callbacks = MockStorageNetworkCallbacks<TestElement>();
-        when(callbacks.onCreate(any))
-            .thenAnswer((realInvocation) => Future.value(null));
-        when(callbacks.onFetch())
-            .thenAnswer((realInvocation) => Future.value([]));
-        final entry = await syncStorage
-            .registerEntry<TestElement, HiveStorageMock<TestElement>>(
-          name: 'sync_storage_levels_box$i',
-          level: level,
-          getDelayBeforeNextAttempt: (_) => const Duration(seconds: 2),
-          storage: storage,
-          networkCallbacks: callbacks,
-        );
-
-        entries.add(entry);
-      }
-
-      Iterable<Future<void>> initializeEntries() =>
-          entries.map((e) => e!.initialize());
-
-      await Future.wait(initializeEntries());
-    });
-
     setUp(() async {
       await networkAvailabilityService.goOffline();
-      for (final entry in entries) {
-        await entry!.clear();
-        await entry.refetch();
-      }
+      syncStorage = SyncStorage(
+        networkAvailabilityService: networkAvailabilityService,
+        children: [
+          createEntry(
+            name: '0',
+            dependants: [
+              createEntry(
+                name: '0-0',
+                dependants: [
+                  createEntry(name: '0-0-0', dependants: [
+                    createEntry(name: '0-0-0-0'),
+                  ]),
+                  createEntry(name: '0-0-1')
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+
+      await syncStorage.initialize();
     });
 
     tearDownAll(() async {
       await syncStorage.dispose();
-      await Future.wait([
-        for (int i = 0; i < entries.length; i++)
-          Hive.deleteBoxFromDisk((entries[i]!.storage).boxName),
-      ]);
     });
 
     test(
         'Do not sync cells that with larger levels '
         'when exception occurred in lower level', () async {
-      final errorEntry = getEntryWithLevel(2)!;
-      when((errorEntry.networkCallbacks as MockStorageNetworkCallbacks)
-              .onCreate(any))
+      final errorEntry =
+          syncStorage.traverse().firstWhere((e) => e.name == '0-0-0');
+
+      when((errorEntry.callbacks as MockStorageNetworkCallbacks).onCreate(any))
           .thenThrow(const SyncException([]));
 
-      for (final entry in entries) {
+      for (final entry in syncStorage.traverse()) {
         const newElement = TestElement(1);
-        await entry!.createElement(newElement);
+        await entry.createElement(newElement);
       }
 
-      for (final entry in entries) {
-        expect(entry!.needsElementsSync, isTrue);
+      for (final entry in syncStorage.traverse()) {
+        expect(entry.needsElementsSync, isTrue);
       }
 
       await networkAvailabilityService.goOnline();
       // wait for current sync end
-      await syncStorage.syncEntriesWithNetwork();
 
-      int level2ElementsToSyncCount = 0;
-      for (final entry in entries) {
-        final hasElementsToSync = entry!.cellsToSync.isNotEmpty;
+      await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
-        if (entry.level == 2 && hasElementsToSync) {
-          level2ElementsToSyncCount++;
-        } else if (entry.level >= 3) {
-          expect(hasElementsToSync, isTrue);
-        } else {
-          expect(hasElementsToSync, isFalse);
-        }
-      }
+      final syncStatus = {
+        for (final entry in syncStorage.traverse())
+          entry.name: (entry as StorageEntry).cellsToSync.isNotEmpty,
+      };
 
-      /// Only one entry with level 2 is not synced
-      expect(level2ElementsToSyncCount, equals(1));
+      expect(syncStatus, <String, bool>{
+        '0': false, // synced
+        '0-0': false, // synced
+        '0-0-0': true, // not synced
+        '0-0-0-0': true, // not synced
+        '0-0-1': false, // synced
+      });
     });
 
     test(
         'Do not fetch cells with larger levels '
         'when exception occurred in lower level', () async {
-      final entry = getEntryWithLevel(2)!;
-      expect(entry.fetchAttempt, equals(-1));
-      expect(entry.needsFetch, isTrue);
-      expect(entry.canFetch, isTrue);
+      final errorEntry = syncStorage
+          .traverse()
+          .firstWhere((e) => e.name == '0-0-0') as StorageEntry;
+      expect(errorEntry.fetchAttempt, equals(-1));
+      expect(errorEntry.needsFetch, isTrue);
+      expect(errorEntry.canFetch, isTrue);
 
-      for (final entry in entries) {
-        when(entry!.networkCallbacks.onFetch()).thenAnswer((_) async => [
-              const TestElement(1),
-              const TestElement(2),
-              const TestElement(3),
-              const TestElement(4),
-            ]);
+      for (final entry in syncStorage.traverse()) {
+        when((entry.callbacks as MockStorageNetworkCallbacks).onFetch())
+            .thenAnswer((_) async => <TestElement>[
+                  const TestElement(1),
+                  const TestElement(2),
+                  const TestElement(3),
+                  const TestElement(4),
+                ]);
       }
 
-      when(entry.networkCallbacks.onFetch()).thenThrow(const SyncException([]));
+      when(errorEntry.callbacks.onFetch()).thenThrow(const SyncException([]));
 
       await networkAvailabilityService.goOnline();
 
-      await syncStorage.syncEntriesWithNetwork();
+      await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
-      expect(entry.fetchAttempt, equals(0));
-      expect(entry.needsFetch, isTrue);
-      expect(entry.canFetch, isFalse);
+      expect(errorEntry.fetchAttempt, equals(0));
+      expect(errorEntry.needsFetch, isTrue);
+      expect(errorEntry.canFetch, isFalse);
 
-      int notFetchedLevel2Count = 0;
-      for (final entry in entries) {
-        final List<StorageCell<TestElement>> cells =
-            await entry!.storage.readAllCells();
-        // print("level ${entry.level}:  cellsCount=${cells.length}");
+      var entryElementsCount = {
+        for (final entry in syncStorage.traverse())
+          entry.name: (await entry.storage.readAll()).length,
+      };
 
-        if (entry.level == 2 && cells.isEmpty) {
-          notFetchedLevel2Count++;
-        } else if (entry.level >= 3) {
-          expect(cells, hasLength(0));
-        } else {
-          expect(cells, hasLength(4));
-        }
-      }
+      /// Only one entry with level 2 are not fetched
+      expect(entryElementsCount, <String, int>{
+        '0': 4,
+        '0-0': 4,
+        '0-0-0': 0,
+        '0-0-0-0': 0,
+        '0-0-1': 4,
+      });
 
-      /// Only one entry with level 2 is not fetched
-      expect(notFetchedLevel2Count, equals(1));
+      when((errorEntry.callbacks as MockStorageNetworkCallbacks).onFetch())
+          .thenAnswer((_) async => <TestElement>[
+                const TestElement(1),
+                const TestElement(2),
+                const TestElement(3),
+                const TestElement(4),
+              ]);
 
-      when(entry.networkCallbacks.onFetch()).thenAnswer((_) async => [
-            const TestElement(1),
-            const TestElement(2),
-            const TestElement(3),
-            const TestElement(4),
-          ]);
-
-      // Wait for fetch availability if needed.
-      final diff = entry.nextFetchDelayedTo!.difference(DateTime.now());
+      // // // Wait for fetch availability if needed.
+      final diff = errorEntry.nextFetchDelayedTo!.difference(DateTime.now());
       if (!diff.isNegative) {
         await Future<void>.delayed(diff);
       }
 
       await syncStorage.syncEntriesWithNetwork();
 
-      for (final entry in entries) {
-        final List<StorageCell<TestElement>> cells =
-            await entry!.storage.readAllCells();
-        // print("level ${entry.level}:  cellsCount=${cells.length}");
+      entryElementsCount = {
+        for (final entry in syncStorage.traverse())
+          entry.name: (await entry.storage.readAll()).length,
+      };
 
-        expect(cells, hasLength(4));
-      }
+      /// All elements are fetched
+      expect(entryElementsCount, <String, int>{
+        '0': 4,
+        '0-0': 4,
+        '0-0-0': 4,
+        '0-0-0-0': 4,
+        '0-0-1': 4,
+      });
     });
   });
 }
