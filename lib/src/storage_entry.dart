@@ -76,8 +76,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   final OnCellSyncError<T>? onCellSyncError;
   final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
   final DelayDurationGetter getDelayBeforeNextAttempt;
-  // final Future<void>? Function() networkUpdateCallback;
-  // final StreamSink<SyncStorageLog> _logsSink;
 
   @override
   DateTime? get lastSync => storage.config.lastSync;
