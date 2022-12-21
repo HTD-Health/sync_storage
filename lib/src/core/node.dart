@@ -10,7 +10,7 @@ abstract class Node<T extends Node<T>> {
   List<T> get children => List.unmodifiable(_children);
   final List<T> _children;
 
-  Node({required List<T> children}) : _children = children;
+  Node({required List<T> children}) : _children = List.of(children);
 
   /// Traverses [children] using the traversal pre-order (NLR) algorithm.
   Iterable<T> traverse() sync* {
@@ -26,17 +26,17 @@ abstract class Node<T extends Node<T>> {
   ///
   /// **This does not call [callback] for the current node.**
   ///
-  /// If [singleLayer] is set to `true` only dependants of this instance
-  /// will be called - no recurrent.
-  FutureOr<void> forEachChildrenLayered(
+  /// If [recursive] is set to `false` only dependants of this instance
+  /// will be called - no recursive.
+  Future<void> forEachChildrenLayered(
     NodeCallback<T> callback, {
-    bool singleLayer = false,
+    bool recursive = true,
   }) {
     return Future.wait<void>(
       children.map((d) async {
         await callback(this, d);
 
-        if (!singleLayer) {
+        if (recursive) {
           await d.forEachChildrenLayered(callback);
         }
       }),

@@ -130,7 +130,7 @@ class SyncStorage extends SyncNode {
 
         /// Childen are responsible for its' children initialization
         /// as the context can be scoped in the future
-        singleLayer: true,
+        recursive: false,
       );
       _networkAvailabilitySubscription = _networkAvailabilityService
           .onConnectivityChanged
@@ -196,7 +196,6 @@ class SyncStorage extends SyncNode {
 
       await syncChildrenWithNetwork();
     } finally {
-      // _progress.end();
       _networkSyncTask!.complete();
       _statusController.value = SyncStorageStatus.idle;
       _progress.end();

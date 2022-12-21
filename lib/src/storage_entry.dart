@@ -31,12 +31,9 @@ Duration defaultGetDelayBeforeNextAttempt(int attemptNumber) {
   }
 }
 
-/// WIP:
 /// Create [StorageEntry] interface
 abstract class Entry<T, S extends Storage<T>> extends SyncNode {
-  Entry({
-    List<Entry<dynamic, Storage>>? children,
-  }) : super(children: children ?? []);
+  Entry({super.children = const []});
 
   String get name;
   S get storage;
@@ -75,8 +72,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   final S storage;
   @override
   final StorageNetworkCallbacks<T> callbacks;
-  @override
-  final List<StorageEntry> children;
 
   final OnCellSyncError<T>? onCellSyncError;
   final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
@@ -132,7 +127,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   StorageEntry({
     required this.name,
-    this.children = const [],
+    super.children,
     required this.storage,
     required this.callbacks,
 
@@ -172,7 +167,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
         progress: context.progress,
         network: context.network,
       )),
-      singleLayer: true,
+      recursive: false,
     );
   }
 
