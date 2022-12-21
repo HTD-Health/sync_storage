@@ -191,12 +191,22 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     return cells;
   }
 
-  @Deprecated('In favor of syncWithNetwork')
-  Future<void> requestNetworkSync() async {
+  /// This method is used internally by the [addCell], [updateCell]
+  /// and [deleteCell] methods.
+  ///
+  /// If network is not available, the sync action should not be performed.
+  Future<void> _requestNetworkSync() async {
+    /// If network is not available, do not sync with network.
+    if (!_context!.network.isConnected) return;
     try {
       await syncWithNetwork();
-    } on Exception {
-      // ? We do not want to throw an exception outside the sync storage
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      // Do not throw an error outside of sync_storage,
+      // as the request will be retried inside the library.
+      // Also, instead of an exception, for example,
+      // the [addCell] method returns [StorageCell],
+      // which can be used to get the current sync state.
     }
   }
 
@@ -289,7 +299,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     await storage.writeConfig(storage.config.copyWith(
       needsFetch: true,
     ));
-    await requestNetworkSync();
+    await _requestNetworkSync();
   }
 
   @override
@@ -516,7 +526,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     if (cell.needsNetworkSync || cell.isDelayed) {
       _cellsToSync.add(cell);
-      await requestNetworkSync();
+      await _requestNetworkSync();
     }
   }
 
@@ -531,7 +541,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     await storage.write(cell);
     logger.t('Cell stored in storage.');
     logger.t('Requesting network sync...');
-    await requestNetworkSync();
+    await _requestNetworkSync();
     logger.t('Network sync request done.');
     return cell;
   }
@@ -544,7 +554,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
     await Future.wait(cells.map(storage.write));
 
-    await requestNetworkSync();
+    await _requestNetworkSync();
     return cells;
   }
 
@@ -582,7 +592,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     }
 
     await storage.write(cell);
-    await requestNetworkSync();
+    await _requestNetworkSync();
   }
 
   /// Deletes current cell from storage and network.
