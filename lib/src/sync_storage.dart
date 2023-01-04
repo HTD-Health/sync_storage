@@ -62,6 +62,25 @@ class SyncStorage extends SyncNode {
         }
       });
 
+  /// All data has been fetched successfully
+  /// and there is no need to fetch again.
+  bool get allDataUpToDate => traverse().every((e) => e.isDataUpToDate);
+
+  /// True when all entries have already been fetched.
+  bool get allFetched => traverse().every((e) => e.wasFetched);
+
+  /// Returns the number of elements that require synchronization.
+  int get elementsToSyncCount =>
+      traverse().fold<int>(0, (s, e) => s + e.elementsToSyncCount);
+
+  /// Returns the number of entries that require fetch.
+  int get entriesToFetchCount =>
+      traverse().fold(0, (sum, e) => e.needsFetch ? sum + 1 : sum);
+
+  /// Returns the number of entries that were successfully fetched.
+  int get fetchedEntriesCount =>
+      traverse().fold(0, (sum, e) => e.wasFetched ? sum + 1 : sum);
+
   final ScopedLogger _logger;
 
   final _statusController =
@@ -73,9 +92,6 @@ class SyncStorage extends SyncNode {
   final NetworkAvailabilityService _networkAvailabilityService;
   StreamSubscription<bool>? _networkAvailabilitySubscription;
 
-  int get elementsToSyncCount =>
-      traverse().fold<int>(0, (s, e) => s + e.elementsToSyncCount);
-
   Completer<void>? _networkSyncTask;
 
   /// Whether [SyncStorage] is syncing entries with network.
@@ -86,11 +102,9 @@ class SyncStorage extends SyncNode {
   bool get needsNetworkSync =>
       traverse().any((entry) => entry.needsNetworkSync);
 
-  List<Entry> get entriesToSync => traverse()
-      // entries with fetch delayed needs to be added for
-      // level functionality.
-      .where((entry) => entry.needsNetworkSync || entry.isFetchDelayed)
-      .toList();
+  int get entriesToSyncCount => traverse()
+      .where((entry) => entry.needsNetworkSync || entry.needsFetch)
+      .length;
 
   final _progress = ProgressController(SyncProgress({}));
   ListenableValue<SyncProgress> get progress => _progress;
@@ -163,8 +177,8 @@ class SyncStorage extends SyncNode {
   /// This method may throw an exception if synchronization has been interrupted
   Future<void> syncEntriesWithNetwork() async {
     _logger.i(
-      'Requesting entries sync. Registered entries '
-      'to sync: ${entriesToSync.length}.',
+      'Request to synchronize entries. '
+      'Registered entries to be synchronized: ${entriesToSyncCount}.',
     );
 
     /// If there is no network connection, do not perform
@@ -184,7 +198,7 @@ class SyncStorage extends SyncNode {
     _networkSyncTask = Completer<void>();
     try {
       traverse().forEach((e) {
-        final fetchRequired = e.canFetch;
+        final fetchRequired = e.needsFetch;
         final progress = EntrySyncProgress(
           initialFetchRequired: fetchRequired,
           fetchCompleted: !fetchRequired,

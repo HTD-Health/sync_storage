@@ -88,10 +88,8 @@ void main() {
         expect(entry.needsElementsSync, isTrue);
       }
 
+      /// Automatically starts the synchronization action
       await networkAvailabilityService.goOnline();
-      // wait for current sync end
-
-      await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
       final syncStatus = {
         for (final entry in syncStorage.traverse())
@@ -113,9 +111,7 @@ void main() {
       final errorEntry = syncStorage
           .traverse()
           .firstWhere((e) => e.name == '0-0-0') as StorageEntry;
-      expect(errorEntry.fetchAttempt, equals(-1));
       expect(errorEntry.needsFetch, isTrue);
-      expect(errorEntry.canFetch, isTrue);
 
       for (final entry in syncStorage.traverse()) {
         when((entry.callbacks as MockStorageNetworkCallbacks).onFetch())
@@ -133,9 +129,7 @@ void main() {
 
       await executeIgnoreError(() => syncStorage.syncEntriesWithNetwork());
 
-      expect(errorEntry.fetchAttempt, equals(0));
       expect(errorEntry.needsFetch, isTrue);
-      expect(errorEntry.canFetch, isFalse);
 
       var entryElementsCount = {
         for (final entry in syncStorage.traverse())
@@ -160,10 +154,10 @@ void main() {
               ]);
 
       // // // Wait for fetch availability if needed.
-      final diff = errorEntry.nextFetchDelayedTo!.difference(DateTime.now());
-      if (!diff.isNegative) {
-        await Future<void>.delayed(diff);
-      }
+      // final diff = errorEntry.nextFetchDelayedTo!.difference(DateTime.now());
+      // if (!diff.isNegative) {
+      //   await Future<void>.delayed(diff);
+      // }
 
       await syncStorage.syncEntriesWithNetwork();
 

@@ -4,8 +4,6 @@ import 'package:meta/meta.dart';
 import 'package:sync_storage/src/sync_storage.dart';
 import 'package:sync_storage/sync_storage.dart';
 
-import 'helpers/sync_indicator.dart';
-
 part 'storage_cell.dart';
 
 typedef OnCellSyncError<T> = bool Function(
@@ -41,10 +39,12 @@ abstract class Entry<T, S extends Storage<T>> extends SyncNode {
 
   int get elementsToSyncCount;
   bool get needsNetworkSync;
-  bool get isFetchDelayed;
+  // bool get isFetchDelayed;
   DateTime? get lastSync;
   bool get needsElementsSync;
-  bool get canFetch;
+  bool get wasFetched;
+  bool get needsFetch;
+  bool get isDataUpToDate;
 
   Future<void> initialize(SyncContext context);
 
@@ -80,18 +80,16 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   @override
   DateTime? get lastSync => storage.config.lastSync;
   DateTime? get lastFetch => storage.config.lastFetch;
+  @override
   bool get wasFetched => lastFetch != null;
 
   Completer<void>? _networkSyncTask;
 
-  final SyncIndicator _fetchIndicator;
-  DateTime? get nextFetchDelayedTo => _fetchIndicator.delayedTo;
-  int get fetchAttempt => _fetchIndicator.attempt;
-  bool get needsFetch => _fetchIndicator.needSync;
+  bool _needsFetch = false;
   @override
-  bool get canFetch => _fetchIndicator.canSync;
+  bool get needsFetch => _needsFetch;
   @override
-  bool get isFetchDelayed => _fetchIndicator.isSyncDelayed;
+  bool get isDataUpToDate => wasFetched && !needsFetch;
 
   @override
   bool get needsElementsSync =>
@@ -107,7 +105,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   /// Check if [StorageEntry] contains not synced [StorageCell].
   @override
-  bool get needsNetworkSync => canFetch || needsElementsSync;
+  bool get needsNetworkSync => needsFetch || needsElementsSync;
 
   /// Whether [StorageEntry] is syncing elements with network.
 
@@ -138,13 +136,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     /// Returns duration that will be used to delayed
     /// next sync attempt for cell.
     DelayDurationGetter? getDelayBeforeNextAttempt,
-  })  : getDelayBeforeNextAttempt =
-            getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
-        _fetchIndicator = SyncIndicator(
-          getDelay:
-              getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt,
-          needSync: false,
-        );
+  }) : getDelayBeforeNextAttempt =
+            getDelayBeforeNextAttempt ?? defaultGetDelayBeforeNextAttempt;
 
   SyncContext? _context;
 
@@ -155,7 +148,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     _context = context;
 
     await storage.initialize();
-    _fetchIndicator.reset(needSync: storage.config.needsFetch);
+    _needsFetch = storage.config.needsFetch ?? true;
     // TODO?: We can read them on demand during the sync process?
     _cellsToSync = await storage.readNotSynced();
 
@@ -231,11 +224,11 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
         _logger.i('Elements sync completed.');
       }
 
-      if (canFetch && !needsElementsSync) {
+      if (needsFetch && !needsElementsSync) {
         _logger.i('Fetching elements from the network...');
 
         final cells = await fetchElementsFromNetwork();
-        _fetchIndicator.reset(needSync: false);
+        _needsFetch = false;
 
         _logger.i('Elements fetched: count=${cells?.length}.');
 
@@ -265,17 +258,6 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     } on Exception catch (err, st) {
       _logger.e('Error occured.', err, st);
 
-      if (_fetchIndicator.needSync) {
-        /// disable entry fetch for current session.
-        /// Prevent infinit fetch actions when fetch action throws an exception.
-        final fetchDelayDuration = _fetchIndicator.delay();
-        _logger.w(
-          'Fetch for entry with name "${name}" is '
-          'delayed by ${fetchDelayDuration.inMilliseconds}ms '
-          'until ${_fetchIndicator.delayedTo?.toLocal()}.',
-        );
-      }
-
       rethrow;
     } finally {
       _networkSyncTask!.complete();
@@ -285,10 +267,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   @override
   Future<void> refetch() async {
-    _logger.i(
-      'Marked the entry as refetch is needed.',
-    );
-    _fetchIndicator.reset(needSync: true);
+    _logger.i('Marked the entry as refetch is needed.');
+    _needsFetch = true;
     await storage.writeConfig(storage.config.copyWith(
       needsFetch: true,
     ));
@@ -297,11 +277,9 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
 
   @override
   Future<void> reset() async {
-    _logger.i(
-      'Entry reset performed.',
-    );
+    _logger.i('Entry reset performed.');
     await clear();
-    _fetchIndicator.reset(needSync: true);
+    _needsFetch = true;
     await storage.writeConfig(storage.config.copyWith(
       needsFetch: true,
     ));
@@ -311,7 +289,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     _logger.i(
       'Marked as fetch needed.',
     );
-    _fetchIndicator.reset(needSync: true);
+    _needsFetch = true;
     await storage.writeConfig(storage.config.copyWith(
       needsFetch: true,
     ));
@@ -490,7 +468,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     /// Wait for ongoing sync task
     await _networkSyncTask?.future;
 
-    _fetchIndicator.reset(needSync: false);
+    _needsFetch = false;
     _cellsToSync.clear();
     await storage.clear();
 

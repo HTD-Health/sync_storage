@@ -21,7 +21,7 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
     _isConnected = true;
 
     /// wait for network changes to take effect
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
 
   Future<void> goOffline() async {
@@ -29,7 +29,7 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
     _isConnected = false;
 
     /// wait for network changes to take effect
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    await Future<void>.delayed(const Duration(milliseconds: 50));
   }
 
   @override
