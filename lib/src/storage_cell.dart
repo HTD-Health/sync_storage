@@ -49,7 +49,7 @@ class StorageCell<T> {
   /// already reached.
   ///
   /// Sync will be delayed by the provided [delay] value.
-  Duration registerSyncAttempt({
+  void registerSyncAttempt({
     required Duration delay,
   }) {
     if (isDelayed) {
@@ -59,8 +59,6 @@ class StorageCell<T> {
     _networkSyncAttemptsCount++;
 
     _syncDelayedTo = DateTime.now().add(delay);
-
-    return delay;
   }
 
   void resetSyncAttemptsCount() {

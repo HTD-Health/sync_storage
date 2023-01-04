@@ -39,7 +39,6 @@ abstract class Entry<T, S extends Storage<T>> extends SyncNode {
 
   int get elementsToSyncCount;
   bool get needsNetworkSync;
-  // bool get isFetchDelayed;
   DateTime? get lastSync;
   bool get needsElementsSync;
   bool get wasFetched;
@@ -387,9 +386,8 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
       logger.e('Exception caught during cell sync.', err, stackTrace);
 
       /// register sync attempt on failed sync.
-      final delay = cell.registerSyncAttempt(
-        delay: getDelayBeforeNextAttempt(cell.networkSyncAttemptsCount),
-      );
+      final delay = getDelayBeforeNextAttempt(cell.networkSyncAttemptsCount);
+      cell.registerSyncAttempt(delay: delay);
 
       logger.w(
         'The cell sync delayed by ${delay.inMilliseconds}ms '
