@@ -76,6 +76,10 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   final OnCellMaxAttemptReached<T>? onCellMaxAttemptsReached;
   final DelayDurationGetter getDelayBeforeNextAttempt;
 
+  /// If an error occurs during initialization, the data of this storage
+  /// will be cleared and the storage will be marked as fetch required.
+  final bool clearOnError;
+
   @override
   DateTime? get lastSync => storage.config.lastSync;
   DateTime? get lastFetch => storage.config.lastFetch;
@@ -125,6 +129,7 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
     super.children,
     required this.storage,
     required this.callbacks,
+    this.clearOnError = false,
 
     /// called on every cell network sync error
     this.onCellSyncError,
@@ -146,10 +151,30 @@ class StorageEntry<T, S extends Storage<T>> extends Entry<T, S> {
   Future<void> initialize(SyncContext context) async {
     _context = context;
 
-    await storage.initialize();
-    _needsFetch = storage.config.needsFetch ?? true;
-    // TODO?: We can read them on demand during the sync process?
-    _cellsToSync = await storage.readNotSynced();
+    final logger = _logger.beginScope('initialize');
+
+    try {
+      await storage.initialize();
+      _needsFetch = storage.config.needsFetch ?? true;
+      // TODO?: We can read them on demand during the sync process?
+      _cellsToSync = await storage.readNotSynced();
+    } on Exception {
+      if (clearOnError) {
+        logger.w('Unable to initialize storage. Clearing the storage.');
+        _needsFetch = true;
+        await storage.clear();
+        logger.i('Storage cleared.');
+        await storage.writeConfig(storage.config.copyWith(needsFetch: true));
+        logger.i('Config written.');
+      } else {
+        logger.w(
+          'Failed to initialize the storage. '
+          'You can also clear the storage in the following situation '
+          'by setting the "clearOnError" argument to true.',
+        );
+        rethrow;
+      }
+    }
 
     await forEachChildrenLayered(
       (_, child) => child.initialize(SyncContext(

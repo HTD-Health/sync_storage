@@ -26,7 +26,7 @@ abstract class Node<T extends Node<T>> {
   ///
   /// **This does not call [callback] for the current node.**
   ///
-  /// If [recursive] is set to `false` only dependants of this instance
+  /// If [recursive] is set to `false` only dependents of this instance
   /// will be called - no recursive.
   Future<void> forEachChildrenLayered(
     NodeCallback<T> callback, {

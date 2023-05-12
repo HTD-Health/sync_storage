@@ -4,14 +4,8 @@ import 'package:sync_storage/sync_storage.dart';
 import 'package:test/test.dart';
 
 import 'data.dart';
+import 'sync_storage_count_test.dart';
 import 'sync_storage_test.mocks.dart';
-
-class HasElementValue extends CustomMatcher {
-  HasElementValue(dynamic matcher)
-      : super('Storage with id that is', 'id', matcher);
-  @override
-  int? featureValueOf(dynamic actual) => (actual as TestElement).value;
-}
 
 @GenerateMocks([StorageNetworkCallbacks])
 void main() {
@@ -211,11 +205,11 @@ void main() {
       verifyNever(networkCallbacks.onCreate(any)).called(0);
       verifyNever(networkCallbacks.onDelete(any)).called(0);
 
-      final List<StorageCell<TestElement>> readedCells =
+      final List<StorageCell<TestElement>> readCells =
           await storage.readAll();
-      expect(readedCells, hasLength(5));
+      expect(readCells, hasLength(5));
       expect(
-        readedCells.last.element.value,
+        readCells.last.element.value,
         updatedTestElement.value,
       );
     });

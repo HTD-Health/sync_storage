@@ -142,7 +142,7 @@ class SyncStorage extends SyncNode {
           network: _networkAvailabilityService,
         )),
 
-        /// Childen are responsible for its' children initialization
+        /// Children are responsible for its' children initialization
         /// as the context can be scoped in the future
         recursive: false,
       );
@@ -153,6 +153,7 @@ class SyncStorage extends SyncNode {
     } on Exception {
       _unlockAllChildren();
       _statusController.add(SyncStorageStatus.idle);
+      rethrow;
     }
   }
 

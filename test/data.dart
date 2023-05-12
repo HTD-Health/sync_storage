@@ -41,12 +41,28 @@ class MockedNetworkAvailabilityService extends NetworkAvailabilityService {
   }
 }
 
+class FakeException implements Exception {
+  final String message;
+
+  FakeException(this.message);
+
+  @override
+  String toString() => 'FakeException: $message';
+}
+
 class InMemoryStorage<T> extends Storage<T> {
   final String name;
 
+  bool throwDuringInit;
+  bool throwDuringRead;
+
   final _elements = <ObjectId, StorageCell<T>>{};
 
-  InMemoryStorage(this.name);
+  InMemoryStorage(
+    this.name, {
+    this.throwDuringInit = false,
+    this.throwDuringRead = false,
+  });
 
   @override
   StorageConfig get config => _config;
@@ -75,21 +91,33 @@ class InMemoryStorage<T> extends Storage<T> {
 
   @override
   Future<void> initialize() {
+    if (throwDuringInit) {
+      throw FakeException('initialize()');
+    }
     return Future<void>.value();
   }
 
   @override
   Future<List<StorageCell<T>>> readAll() {
+    if (throwDuringRead) {
+      throw FakeException('readAll()');
+    }
     return Future.value(_elements.values.toList());
   }
 
   @override
   Future<StorageCell<T>?> read(ObjectId id) {
+    if (throwDuringRead) {
+      throw FakeException('read(${id})');
+    }
     return Future.value(_elements[id]);
   }
 
   @override
   Future<List<StorageCell<T>>> readNotSynced() {
+    if (throwDuringRead) {
+      throw FakeException('readNotSynced()');
+    }
     final notSynced =
         _elements.values.where((c) => c.needsNetworkSync).toList();
     return Future.value(notSynced);
